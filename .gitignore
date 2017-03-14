@@ -1,6 +1,7 @@
 /node_modules
 /public/index.html
-/public/js/script.js
+/public/js/fullpage.js
+/public/js/startpage.js
 /public/css/editor.css
 .tern-port
 /src/collab/demo-instances.json

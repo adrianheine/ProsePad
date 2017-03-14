@@ -3,14 +3,18 @@ PAGES:=$(shell find pages -name "*.html")
 ROOT:=$(shell if [ -d node_modules/prosemirror-model ]; then echo node_modules/; else echo ../node_modules/; fi)
 
 all: $(PAGES:pages/%=public/%) \
-     public/js/script.js \
+     public/js/fullpage.js \
+     public/js/startpage.js \
      public/css/editor.css
 
 public/%.html: pages/%.* templates/* src/build/*.js
 	mkdir -p $(dir $@)
 	node src/build/build.js $<
 
-public/js/script.js: pages/script.js
+public/js/fullpage.js: src/collab/client/*.js
+	$(ROOT).bin/rollup -c
+
+public/js/startpage.js: src/collab/client/*.js
 	$(ROOT).bin/rollup -c
 
 public/css/editor.css: $(ROOT)prosemirror-view/style/prosemirror.css \
@@ -20,4 +24,4 @@ public/css/editor.css: $(ROOT)prosemirror-view/style/prosemirror.css \
 	cat $^ > $@
 
 clean:
-	rm public/*.html public/js/script.js public/css/editor.css
+	rm public/*.html public/js/fullpage.js public/js/startpage.js public/css/editor.css

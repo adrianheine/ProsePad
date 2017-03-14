@@ -23,7 +23,7 @@ class State {
   }
 }
 
-let Action = new Union(["loaded", "restart", "poll", "recover", "transaction"])
+const Action = new Union(["loaded", "restart", "poll", "recover", "transaction"])
 
 export class EditorConnection {
   constructor(report, url) {
@@ -106,14 +106,18 @@ export class EditorConnection {
 
   // Load the document from the server and start up
   start() {
-    return this.run(GET(this.url)).then(data => {
+    return this.run(GET(this.url, "application/json")).then(data => {
       data = JSON.parse(data)
       this.report.success()
       this.backOff = 0
-      this.dispatch(Action.loaded(data))
+      this.startFromData(data)
     }, err => {
       this.report.failure(err)
     })
+  }
+
+  startFromData(data) {
+    this.dispatch(Action.loaded(data))
   }
 
   // Send a request for events that have happened since the version
@@ -122,7 +126,7 @@ export class EditorConnection {
   // is already up-to-date.
   poll() {
     let query = "version=" + getVersion(this.state.edit) + "&commentVersion=" + commentPlugin.getState(this.state.edit).version
-    this.run(GET(this.url + "/events?" + query)).then(data => {
+    this.run(GET(this.url + "/events?" + query, "application/json")).then(data => {
       this.report.success()
       data = JSON.parse(data)
       this.backOff = 0

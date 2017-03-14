@@ -1,0 +1,69 @@
+<<head {
+  title: "ProsePad – " + $in.docName,
+}>>
+
+<style>
+html {
+  overflow: auto
+}
+
+body {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+article {
+  display: flex;
+  flex: 1;
+  min-height: 15em;
+}
+
+aside {
+  margin: 0 1em;
+  flex: 0.25;
+}
+
+footer {
+  margin-bottom: 0;
+  padding: 0.25em;
+}
+
+article {
+  padding: 1em 3px;
+}
+
+#editor {
+  flex: 1
+}
+
+.ProseMirror-menubar-wrapper {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+}
+
+.ProseMirror {
+  flex: 1
+}
+</style>
+
+<div id=editor></div>
+
+<aside>
+  <div class=docinfo>
+    Connected to: <span id="connected">
+      <span id="docname"><<t $in.docName>></span>
+      <span id="users"></span>
+    </span>
+  </div>
+</aside>
+
+<link rel=stylesheet href="/_resources/css/editor.css">
+<div style="display: none" id=data>
+<<t $in.content>>
+</div>
+<script src="/_resources/js/fullpage.js"></script>
+
+<<foot>>

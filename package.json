@@ -11,6 +11,7 @@
   ],
   "dependencies": {
     "crel": "^3.0.0",
+    "negotiator": "^0.6.1",
     "prosemirror-collab": "^1.0.0",
     "prosemirror-commands": "^1.0.0",
     "prosemirror-example-setup": "^1.0.0",

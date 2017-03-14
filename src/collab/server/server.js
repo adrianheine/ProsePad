@@ -1,4 +1,5 @@
 const {readFile} = require("fs")
+const Negotiator = require("negotiator")
 const {Step} = require("prosemirror-transform")
 
 const {Router} = require("./route")
@@ -119,15 +120,32 @@ handle("GET", ["_docs"], () => {
   return Output.json(instanceInfo())
 })
 
+const mold = require('../../mold')
+
+const getViewData = inst => ({
+  doc: inst.doc.toJSON(),
+  users: inst.userCount,
+  version: inst.version,
+  comments: inst.comments.comments,
+  commentVersion: inst.comments.version
+})
+
 // Output the current state of a document instance.
 handle("GET", [null], (id, req) => {
   id = validInstanceId(id)
   let inst = getInstance(id, reqIP(req))
-  return Output.json({doc: inst.doc.toJSON(),
-                      users: inst.userCount,
-                      version: inst.version,
-                      comments: inst.comments.comments,
-                      commentVersion: inst.comments.version})
+  const negotiator = new Negotiator(req)
+  switch (negotiator.mediaType(["text/html", "application/json"])) {
+  case "application/json":
+    return Output.json(getViewData(inst))
+  case "text/html":
+    return new Output(200, mold.dispatch("editor", {
+      content: JSON.stringify(getViewData(inst)),
+      docName: id
+    }), "text/html")
+  default:
+    return new Output(406, "Not Acceptable")
+  }
 })
 
 function nonNegInteger(str) {

@@ -34,8 +34,8 @@ function makePlain(html) {
   return elt.textContent.trimLeft().replace(/\n[^]*/, "")
 }
 
-export function GET(url) {
-  return req({url, method: "GET"})
+export function GET(url, type = "*/*") {
+  return req({url, method: "GET", headers: {"Accept": type}})
 }
 
 export function POST(url, body, type) {

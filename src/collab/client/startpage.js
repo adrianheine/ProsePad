@@ -10,7 +10,7 @@ const report = new Reporter()
 let baseUrl = "/"
 
 document.querySelector("#changedoc").addEventListener("click", e => {
-  GET(baseUrl + "_docs").then(data => showDocList(e.target, JSON.parse(data)),
+  GET(baseUrl + "_docs", "application/json").then(data => showDocList(e.target, JSON.parse(data)),
                                     err => report.failure(err))
 })
 
