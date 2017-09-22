@@ -6,4 +6,4 @@
 /public/js/startpage.js
 /public/css/editor.css
 .tern-port
-/src/collab/demo-instances.json
+/data/instances.json
