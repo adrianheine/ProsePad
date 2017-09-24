@@ -10,6 +10,7 @@ import {schema} from "../schema"
 import {GET, POST} from "./http"
 import {commentPlugin, commentUI, addAnnotation, annotationIcon} from "./comment"
 import {info, userString} from "./info"
+import Union from "tagged-union"
 
 function badVersion(err) {
   return err.status == 400 && /invalid version/i.test(err)
@@ -22,6 +23,8 @@ class State {
   }
 }
 
+let Action = new Union(["loaded", "restart", "poll", "recover", "transaction"])
+
 export class EditorConnection {
   constructor(report, url) {
     this.report = report
@@ -30,60 +33,64 @@ export class EditorConnection {
     this.request = null
     this.backOff = 0
     this.view = null
-    this.dispatch = this.dispatch.bind(this)
   }
 
   // All state changes go through this
   dispatch(action) {
-    let newEditState = null
-    if (action.type == "loaded") {
-      info.users.textContent = userString(action.users) // FIXME ewww
-      let editState = EditorState.create({
-        doc: action.doc,
-        plugins: exampleSetup({schema, history: false, menuContent: menu.fullMenu}).concat([
-          history({preserveItems: true}),
-          collab({version: action.version}),
-          commentPlugin,
-          commentUI(transaction => this.dispatch({type: "transaction", transaction}))
-        ]),
-        comments: action.comments
-      })
-      this.state = new State(editState, "poll")
-      this.poll()
-    } else if (action.type == "restart") {
-      this.state = new State(null, "start")
-      this.start()
-    } else if (action.type == "poll") {
-      this.state = new State(this.state.edit, "poll")
-      this.poll()
-    } else if (action.type == "recover") {
-      if (action.error.status && action.error.status < 500) {
-        this.report.failure(action.error)
-        this.state = new State(null, null)
-      } else {
-        this.state = new State(this.state.edit, "recover")
-        this.recover(action.error)
-      }
-    } else if (action.type == "transaction") {
-      newEditState = this.state.edit.apply(action.transaction)
-    }
-
-    if (newEditState) {
-      let sendable
-      if (newEditState.doc.content.size > 40000) {
-        if (this.state.comm != "detached") this.report.failure("Document too big. Detached.")
-        this.state = new State(newEditState, "detached")
-      } else if ((this.state.comm == "poll" || action.requestDone) && (sendable = this.sendable(newEditState))) {
-        this.closeRequest()
-        this.state = new State(newEditState, "send")
-        this.send(newEditState, sendable)
-      } else if (action.requestDone) {
-        this.state = new State(newEditState, "poll")
+    action.match({
+      loaded: data => {
+        info.users.textContent = userString(data.users) // FIXME ewww
+        let editState = EditorState.create({
+          plugins: exampleSetup({schema, history: false, menuContent: menu.fullMenu}).concat([
+            history({preserveItems: true}),
+            collab({version: data.version}),
+            commentPlugin,
+            commentUI(transaction => this.dispatch(Action.transaction({transaction})))
+          ]),
+          doc: schema.nodeFromJSON(data.doc),
+          comments: {version: data.commentVersion, comments: data.comments}
+        })
+        this.state = new State(editState, "poll")
         this.poll()
-      } else {
-        this.state = new State(newEditState, this.state.comm)
+      },
+      restart: () => {
+        this.state = new State(null, "start")
+        this.start()
+      },
+      poll: () => {
+        this.state = new State(this.state.edit, "poll")
+        this.poll()
+      },
+      recover: error => {
+        if (error.status && error.status < 500) {
+          this.report.failure(error)
+          this.state = new State(null, null)
+        } else {
+          this.state = new State(this.state.edit, "recover")
+          this.recover(error)
+        }
+      },
+      transaction: ({transaction, requestDone}) => {
+        let newEditState = this.state.edit.apply(transaction)
+
+        if (newEditState) {
+          let sendable
+          if (newEditState.doc.content.size > 40000) {
+            if (this.state.comm != "detached") this.report.failure("Document too big. Detached.")
+            this.state = new State(newEditState, "detached")
+          } else if ((this.state.comm == "poll" || requestDone) && (sendable = this.sendable(newEditState))) {
+            this.closeRequest()
+            this.state = new State(newEditState, "send")
+            this.send(newEditState, sendable)
+          } else if (requestDone) {
+            this.state = new State(newEditState, "poll")
+            this.poll()
+          } else {
+            this.state = new State(newEditState, this.state.comm)
+          }
+        }
       }
-    }
+    })
 
     // Sync the editor with this.state.edit
     if (this.state.edit) {
@@ -92,7 +99,7 @@ export class EditorConnection {
       else
         this.setView(new EditorView(document.querySelector("#editor"), {
           state: this.state.edit,
-          dispatchTransaction: transaction => this.dispatch({type: "transaction", transaction})
+          dispatchTransaction: transaction => this.dispatch(Action.transaction({transaction}))
         }))
     } else this.setView(null)
   }
@@ -103,11 +110,7 @@ export class EditorConnection {
       data = JSON.parse(data)
       this.report.success()
       this.backOff = 0
-      this.dispatch({type: "loaded",
-                     doc: schema.nodeFromJSON(data.doc),
-                     version: data.version,
-                     users: data.users,
-                     comments: {version: data.commentVersion, comments: data.comments}})
+      this.dispatch(Action.loaded(data))
     }, err => {
       this.report.failure(err)
     })
@@ -126,7 +129,7 @@ export class EditorConnection {
       if (data.steps && (data.steps.length || data.comment.length)) {
         let tr = receiveTransaction(this.state.edit, data.steps.map(j => Step.fromJSON(schema, j)), data.clientIDs)
         tr.setMeta(commentPlugin, {type: "receive", version: data.commentVersion, events: data.comment, sent: 0})
-        this.dispatch({type: "transaction", transaction: tr, requestDone: true})
+        this.dispatch(Action.transaction({transaction: tr, requestDone: true}))
       } else {
         this.poll()
       }
@@ -135,9 +138,9 @@ export class EditorConnection {
       if (err.status == 410 || badVersion(err)) {
         // Too far behind. Revert to server state
         this.report.failure(err)
-        this.dispatch({type: "restart"})
+        this.dispatch(Action.restart())
       } else if (err) {
-        this.dispatch({type: "recover", error: err})
+        this.dispatch(Action.recover(err))
       }
     })
   }
@@ -161,18 +164,18 @@ export class EditorConnection {
           ? receiveTransaction(this.state.edit, steps.steps, repeat(steps.clientID, steps.steps.length))
           : this.state.edit.tr
       tr.setMeta(commentPlugin, {type: "receive", version: JSON.parse(data).commentVersion, events: [], sent: comments.length})
-      this.dispatch({type: "transaction", transaction: tr, requestDone: true})
+      this.dispatch(Action.transaction({transaction: tr, requestDone: true}))
     }, err => {
       if (err.status == 409) {
         // The client's document conflicts with the server's version.
         // Poll for changes and then try again.
         this.backOff = 0
-        this.dispatch({type: "poll"})
+        this.dispatch(Action.poll())
       } else if (badVersion(err)) {
         this.report.failure(err)
-        this.dispatch({type: "restart"})
+        this.dispatch(Action.restart())
       } else {
-        this.dispatch({type: "recover", error: err})
+        this.dispatch(Action.recover(err))
       }
     })
   }
@@ -183,7 +186,7 @@ export class EditorConnection {
     if (newBackOff > 1000 && this.backOff < 1000) this.report.delay(err)
     this.backOff = newBackOff
     setTimeout(() => {
-      if (this.state.comm == "recover") this.dispatch({type: "poll"})
+      if (this.state.comm == "recover") this.dispatch(Action.poll())
     }, this.backOff)
   }
 

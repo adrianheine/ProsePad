@@ -26,7 +26,8 @@
     "prosemirror-schema-list": "^1.0.0",
     "prosemirror-state": "^1.0.0",
     "prosemirror-transform": "^1.0.0",
-    "prosemirror-view": "^1.0.0"
+    "prosemirror-view": "^1.0.0",
+    "tagged-union": "^1.1.0"
   },
   "devDependencies": {
     "builddocs": "^0.2.0",
