@@ -208,7 +208,7 @@ export class EditorConnection {
 
   setView(view) {
     if (this.view) this.view.destroy()
-    this.view = window.view = view
+    this.view = view
   }
 }
 
