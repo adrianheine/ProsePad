@@ -7,6 +7,7 @@ import {collab, receiveTransaction, sendableSteps, getVersion} from "prosemirror
 
 import {schema} from "../schema"
 import {GET, POST} from "./http"
+import {usersPlugin} from "./users"
 import Union from "tagged-union"
 
 function badVersion(err) {
@@ -100,6 +101,8 @@ export class EditorConnection {
 
     // Sync the editor with this.state.edit
     if (this.state.edit) {
+      let userMark = schema.mark("user", {user: usersPlugin.getState(this.state.edit).curUser})
+      this.state.edit = this.state.edit.apply(this.state.edit.tr.addStoredMark(userMark))
       if (this.view)
         this.view.updateState(this.state.edit)
       else
