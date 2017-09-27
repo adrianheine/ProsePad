@@ -24,6 +24,8 @@ article {
 aside {
   margin: 0 1em;
   flex: 0.25;
+  display: flex;
+  flex-direction: column;
 }
 
 footer {
@@ -48,6 +50,32 @@ footer {
 header {
   margin-bottom: 1em;
 }
+
+.chat {
+  list-style: none;
+  padding-left: 0;
+  flex: 1;
+  overflow: auto;
+}
+
+.chat time {
+  color: #444;
+  font-size: smaller;
+}
+
+.chatform {
+  display: flex;
+  margin: 0 -0.5em;
+}
+
+.chatform input[type=submit] {
+  flex: 0.25;
+}
+
+.chatform input {
+  flex: 1;
+  margin: 0 0.5em;
+}
 </style>
 
 <body>
@@ -64,6 +92,12 @@ header {
       <input id="username" />
     </form>
   </div>
+  <ul class="chat">
+  </ul>
+  <form class="chatform">
+    <input />
+    <input type=submit value="Send"/>
+  </form>
 </aside>
 
 </article>

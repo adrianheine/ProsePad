@@ -25,6 +25,7 @@ class Instance {
     this.ip_to_user_id = Object.create(null)
     this.userCount = 0
     this.waiting = []
+    this.chat = {messages: [], version: 0}
 
     this.collecting = null
   }
@@ -33,7 +34,7 @@ class Instance {
     if (this.collecting != null) clearInterval(this.collecting)
   }
 
-  addEvents(version, steps, comments, users, clientID, ip) {
+  addEvents(version, steps, chat, comments, users, clientID, ip) {
     this.checkVersion(version)
     if (this.version != version) return false
     let doc = this.doc, maps = []
@@ -64,9 +65,14 @@ class Instance {
       ++this.usersVersion
     }
 
+    if (chat) {
+      this.chat.messages = this.chat.messages.concat(chat.messages)
+      this.chat.version = chat.version
+    }
+
     this.sendUpdates()
     scheduleSave()
-    return {version: this.version, comments: {version: this.comments.version}, users: {users: users && this.users, version: this.usersVersion}}
+    return {version: this.version, chat: {version: this.chat.version}, comments: {version: this.comments.version}, users: {users: users && this.users, version: this.usersVersion}}
   }
 
   sendUpdates() {
@@ -87,7 +93,7 @@ class Instance {
   // : (Number, Number)
   // Get events between a given document version and
   // the current document version.
-  getEvents(version, commentVersion, usersVersion) {
+  getEvents(version, chatVersion, commentVersion, usersVersion) {
     this.checkVersion(version)
     let startIndex = this.steps.length - (this.version - version)
     if (startIndex < 0) return false
@@ -95,6 +101,7 @@ class Instance {
     if (commentStartIndex < 0) return false
 
     return {steps: this.steps.slice(startIndex),
+            chat: chatVersion != null ? {messages: this.chat.messages.slice(chatVersion)} : null,
             comment: this.comments.eventsAfter(commentStartIndex),
             users: usersVersion < this.usersVersion ? {users: this.users, version: this.usersVersion} : null}
   }

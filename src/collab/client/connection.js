@@ -38,7 +38,8 @@ export class EditorConnection {
     action.match({
       loaded: data => {
         let menuContent = this.plugins.reduce((menu, plugin) => {
-          menu.fullMenu[0].push(plugin.getMenuItem())
+          let item = plugin.getMenuItem()
+          if (item) menu.fullMenu[0].push(item)
           return menu
         }, buildMenuItems(schema)).fullMenu
         let config = this.plugins.reduce((config, plugin) => {
