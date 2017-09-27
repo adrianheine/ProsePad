@@ -4,11 +4,10 @@ import {EditorState} from "prosemirror-state"
 import {EditorView} from "prosemirror-view"
 import {history} from "prosemirror-history"
 import {collab, receiveTransaction, sendableSteps, getVersion} from "prosemirror-collab"
-import {MenuItem} from "prosemirror-menu"
 
 import {schema} from "../schema"
 import {GET, POST} from "./http"
-import {commentPlugin, commentUI, addAnnotation, annotationIcon} from "./comment"
+import {commentsProsePadPlugin} from "./comment"
 import {info, userString} from "./info"
 import Union from "tagged-union"
 
@@ -25,6 +24,8 @@ class State {
 
 const Action = new Union(["loaded", "restart", "poll", "recover", "transaction"])
 
+const plugins = [commentsProsePadPlugin]
+
 export class EditorConnection {
   constructor(report, url) {
     this.report = report
@@ -39,17 +40,25 @@ export class EditorConnection {
   dispatch(action) {
     action.match({
       loaded: data => {
-        info.users.textContent = userString(data.users) // FIXME ewww
-        let editState = EditorState.create({
-          plugins: exampleSetup({schema, history: false, menuContent: menu.fullMenu}).concat([
+        let menuContent = plugins.reduce((menu, plugin) => {
+          menu.fullMenu[0].push(plugin.getMenuItem())
+          return menu
+        }, buildMenuItems(schema)).fullMenu
+        info.users.textContent = userString(action.users) // FIXME ewww
+        let config = plugins.reduce((config, plugin) => {
+          config.plugins = config.plugins.concat(plugin.proseMirrorPlugins(
+            transaction => this.dispatch(Action.transaction({transaction}))
+          ))
+          config[plugin.key] = data[plugin.key]
+          return config
+        }, {
+          plugins: exampleSetup({schema, history: false, menuContent}).concat([
             history({preserveItems: true}),
-            collab({version: data.version}),
-            commentPlugin,
-            commentUI(transaction => this.dispatch(Action.transaction({transaction})))
+            collab({version: data.version})
           ]),
-          doc: schema.nodeFromJSON(data.doc),
-          comments: {version: data.commentVersion, comments: data.comments}
+          doc: schema.nodeFromJSON(data.doc)
         })
+        let editState = EditorState.create(config)
         this.state = new State(editState, "poll")
         this.poll()
       },
@@ -125,14 +134,15 @@ export class EditorConnection {
   // for a new version of the document to be created if the client
   // is already up-to-date.
   poll() {
-    let query = "version=" + getVersion(this.state.edit) + "&commentVersion=" + commentPlugin.getState(this.state.edit).version
+    let query = "version=" + getVersion(this.state.edit) + "&" +
+      plugins.map(plugin => `${plugin.key}Version=${plugin.getVersion(this.state.edit)}`).join("&")
     this.run(GET(this.url + "/events?" + query, "application/json")).then(data => {
       this.report.success()
       data = JSON.parse(data)
       this.backOff = 0
-      if (data.steps && (data.steps.length || data.comment.length)) {
+      if (data.steps && (data.steps.length || plugins.some(plugin => data[plugin.key]))) {
         let tr = receiveTransaction(this.state.edit, data.steps.map(j => Step.fromJSON(schema, j)), data.clientIDs)
-        tr.setMeta(commentPlugin, {type: "receive", version: data.commentVersion, events: data.comment, sent: 0})
+        plugins.forEach(plugin => data[plugin.key] && plugin.receive(tr, data[plugin.key]))
         this.dispatch(Action.transaction({transaction: tr, requestDone: true}))
       } else {
         this.poll()
@@ -150,24 +160,34 @@ export class EditorConnection {
   }
 
   sendable(editState) {
-    let steps = sendableSteps(editState)
-    let comments = commentPlugin.getState(editState).unsentEvents()
-    if (steps || comments.length) return {steps, comments}
+    let sendable = {steps: sendableSteps(editState)}
+    let nonNull = sendable.steps
+    plugins.forEach(plugin => {
+      let v = sendable[plugin.key] = plugin.getSendable(editState)
+      nonNull = nonNull || v
+    })
+    if (nonNull) return sendable
   }
 
   // Send the given steps to the server
-  send(editState, {steps, comments}) {
-    let json = JSON.stringify({version: getVersion(editState),
-                               steps: steps ? steps.steps.map(s => s.toJSON()) : [],
-                               clientID: steps ? steps.clientID : 0,
-                               comment: comments || []})
+  send(editState, data) {
+    let steps = data.steps
+    let dataSent = plugins.reduce((res, plugin) => {
+      res[plugin.key] = data[plugin.key]
+      return res
+    }, {version: getVersion(editState),
+      steps: steps ? steps.steps.map(s => s.toJSON()) : [],
+      clientID: steps ? steps.clientID : 0
+    })
+    let json = JSON.stringify(dataSent)
     this.run(POST(this.url + "/events", json, "application/json")).then(data => {
       this.report.success()
       this.backOff = 0
       let tr = steps
           ? receiveTransaction(this.state.edit, steps.steps, repeat(steps.clientID, steps.steps.length))
           : this.state.edit.tr
-      tr.setMeta(commentPlugin, {type: "receive", version: JSON.parse(data).commentVersion, events: [], sent: comments.length})
+      data = JSON.parse(data)
+      plugins.forEach(plugin => (data[plugin.key] || dataSent[plugin.key]) && plugin.receive(tr, data[plugin.key], dataSent[plugin.key]))
       this.dispatch(Action.transaction({transaction: tr, requestDone: true}))
     }, err => {
       if (err.status == 409) {
@@ -221,12 +241,3 @@ function repeat(val, n) {
   for (let i = 0; i < n; i++) result.push(val)
   return result
 }
-
-const annotationMenuItem = new MenuItem({
-  title: "Add an annotation",
-  run: addAnnotation,
-  select: state => addAnnotation(state),
-  icon: annotationIcon
-})
-let menu = buildMenuItems(schema)
-menu.fullMenu[0].push(annotationMenuItem)

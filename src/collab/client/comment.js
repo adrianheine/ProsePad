@@ -1,4 +1,5 @@
 import crel from "crel"
+import {MenuItem} from "prosemirror-menu"
 import {Plugin} from "prosemirror-state"
 import {Decoration, DecorationSet} from "prosemirror-view"
 
@@ -84,7 +85,7 @@ class CommentState {
   }
 }
 
-export const commentPlugin = new Plugin({
+const commentPlugin = new Plugin({
   state: {
     init: CommentState.init,
     apply(tr, prev) { return prev.apply(tr) }
@@ -100,7 +101,7 @@ function randomID() {
 
 // Command for adding an annotation
 
-export const addAnnotation = function(state, dispatch) {
+function addAnnotation(state, dispatch) {
   let sel = state.selection
   if (sel.empty) return false
   if (dispatch) {
@@ -111,14 +112,14 @@ export const addAnnotation = function(state, dispatch) {
   return true
 }
 
-export const annotationIcon = {
+const annotationIcon = {
   width: 1024, height: 1024,
   path: "M512 219q-116 0-218 39t-161 107-59 145q0 64 40 122t115 100l49 28-15 54q-13 52-40 98 86-36 157-97l24-21 32 3q39 4 74 4 116 0 218-39t161-107 59-145-59-145-161-107-218-39zM1024 512q0 99-68 183t-186 133-257 48q-40 0-82-4-113 100-262 138-28 8-65 12h-2q-8 0-15-6t-9-15v-0q-1-2-0-6t1-5 2-5l3-5t4-4 4-5q4-4 17-19t19-21 17-22 18-29 15-33 14-43q-89-50-141-125t-51-160q0-99 68-183t186-133 257-48 257 48 186 133 68 183z"
 }
 
 // Comment UI
 
-export const commentUI = function(dispatch) {
+const commentUI = function(dispatch) {
   return new Plugin({
     props: {
       decorations(state) {
@@ -148,4 +149,38 @@ function renderComment(comment, dispatch, state) {
     dispatch(state.tr.setMeta(commentPlugin, {type: "deleteComment", comment}))
   )
   return crel("li", {class: "commentText"}, comment.text, btn)
+}
+
+export const commentsProsePadPlugin = {
+  key: "comments",
+
+  proseMirrorPlugins(dispatch) {
+    return [
+      commentPlugin,
+      commentUI(dispatch)
+    ]
+  },
+
+  getVersion(state) {
+    return commentPlugin.getState(state).version
+  },
+
+  receive(tr, {version, comments = []}, dataSent) {
+    let sent = dataSent ? dataSent.length : 0
+    tr.setMeta(commentPlugin, {type: "receive", version, events: comments, sent})
+  },
+
+  getSendable(editState) {
+    let events = commentPlugin.getState(editState).unsentEvents()
+    return events.length > 0 ? events : null
+  },
+
+  getMenuItem() {
+    return new MenuItem({
+      title: "Add an annotation",
+      run: addAnnotation,
+      select: state => addAnnotation(state),
+      icon: annotationIcon
+    })
+  }
 }

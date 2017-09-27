@@ -58,7 +58,7 @@ class Instance {
 
     this.sendUpdates()
     scheduleSave()
-    return {version: this.version, commentVersion: this.comments.version}
+    return {version: this.version, comments: {version: this.comments.version}}
   }
 
   sendUpdates() {

@@ -125,8 +125,7 @@ const getViewData = inst => ({
   doc: inst.doc.toJSON(),
   users: inst.userCount,
   version: inst.version,
-  comments: inst.comments.comments,
-  commentVersion: inst.comments.version
+  comments: inst.comments
 })
 
 // Output the current state of a document instance.
@@ -193,10 +192,9 @@ class Waiting {
 
 function outputEvents(inst, data) {
   return Output.json({version: inst.version,
-                      commentVersion: inst.comments.version,
                       steps: data.steps.map(s => s.toJSON()),
                       clientIDs: data.steps.map(step => step.clientID),
-                      comment: data.comment,
+                      comments: data.comment.length ? {comments: data.comment, version: inst.comments.version} : null,
                       users: data.users})
 }
 
@@ -205,7 +203,7 @@ function outputEvents(inst, data) {
 // current version of the document.
 handle("GET", [null, "events"], (id, req, resp) => {
   let version = nonNegInteger(req.query.version)
-  let commentVersion = nonNegInteger(req.query.commentVersion)
+  let commentVersion = nonNegInteger(req.query.commentsVersion)
   id = validInstanceId(id)
 
   let inst = getInstance(id, reqIP(req))
@@ -233,7 +231,7 @@ function reqIP(request) {
 handle("POST", [null, "events"], (data, id, req) => {
   let version = nonNegInteger(data.version)
   let steps = data.steps.map(s => Step.fromJSON(schema, s))
-  let result = getInstance(id, reqIP(req)).addEvents(version, steps, data.comment, data.clientID)
+  let result = getInstance(id, reqIP(req)).addEvents(version, steps, data.comments, data.clientID)
   if (!result)
     return new Output(409, "Version not current")
   else
