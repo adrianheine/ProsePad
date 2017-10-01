@@ -16,70 +16,9 @@
   <nav>
     <a class=logo href="/">ProseMirror</a>
     <div class=navlinks>
-      <<if toc>><a class=toc-toggle>Contents</a><</if>>
-      <a href="/examples/" <<if type == "examples">>class=active<</if>>>Examples</a>
-      <a href="/docs/" <<if type == "docs">>class=active<</if>>>Documentation</a>
-      <a href="https://discuss.prosemirror.net/">Discuss</a>
       <a href="https://github.com/prosemirror">GitHub</a>
     </div>
   </nav>
-  <<if type == "frontpage">>
-    <h1>A toolkit for building rich-text editors on the web</h1>
-    <div id=editor></div>
-  <</if>>
 </header>
-
-<<if toc>>
-  <nav id=toc>
-    <ul>
-      <<for item toc>>
-        <li><a href="<<t item.href>>"><<t item.name>></a>
-          <<if item.sub>>
-            <ul>
-              <<for sub item.sub>>
-                <li><a href="<<t sub.href>>"><<t sub.name>></a></li>
-              <</for>>
-            </ul>
-          <</if>>
-        </li>
-      <</for>>
-    </ul>
-  </nav>
-  <script>
-addEventListener("load", function() {
-  var toc = document.querySelector("nav#toc")
-  var state = "top"
-  var footer = document.querySelector("footer"), header = document.querySelector("header")
-  function align() {
-    var tocRect = toc.getBoundingClientRect(),
-        headRect = header.getBoundingClientRect(),
-        footRect = footer.getBoundingClientRect()
-    if (state == "top" && headRect.bottom <= -40 ||
-        state == "bottom" && toc.getBoundingClientRect().top >= 0) {
-      toc.style.top = "0"
-      toc.style.bottom = ""
-      toc.classList.add("fixed")
-      state = "fixed"
-    } else if (state == "fixed" && headRect.bottom > -40) {
-      toc.style.bottom = toc.style.top = ""
-      toc.classList.remove("fixed")
-      state = "top"
-    } else if (state == "fixed" && footRect.top < tocRect.bottom) {
-      toc.style.bottom = footRect.height + "px"
-      toc.style.top = "auto"
-      toc.classList.remove("fixed")
-      state = "bottom"
-    }
-  }
-  if (document.body.scrollHeight - header.offsetHeight > innerHeight) {
-    align()
-    addEventListener("scroll", align)
-  }
-  document.querySelector(".toc-toggle").addEventListener("click", function() {
-    toc.classList.toggle("open")
-  })
-})
-  </script>
-<</if>>
 
 <article>

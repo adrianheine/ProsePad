@@ -1,8 +1,7 @@
 var fs = require("fs")
 var Mold = require("mold-template")
 var markdown = (require("markdown-it")({
-  html: true,
-  highlight: require("./highlight").highlight
+  html: true
 })).use(require("markdown-it-deflist"))
 
 module.exports = function loadTemplates(config) {
