@@ -1,7 +1,7 @@
 /node_modules
-/public/**/*.html
-/public/examples/*/example.js
-/public/examples/prosemirror.js
+/public/index.html
+/public/js/prosemirror.js
+/public/js/script.js
 /public/css/editor.css
 .tern-port
 /src/collab/demo-instances.json
