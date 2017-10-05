@@ -5,14 +5,11 @@ import {EditorView} from "prosemirror-view"
 import {history} from "prosemirror-history"
 import {collab, receiveTransaction, sendableSteps, getVersion} from "prosemirror-collab"
 import {MenuItem} from "prosemirror-menu"
-import crel from "crel"
 
 import {schema} from "../schema"
 import {GET, POST} from "./http"
-import {Reporter} from "./reporter"
 import {commentPlugin, commentUI, addAnnotation, annotationIcon} from "./comment"
-
-const report = new Reporter()
+import {info, userString} from "./info"
 
 function badVersion(err) {
   return err.status == 400 && /invalid version/i.test(err)
@@ -25,7 +22,7 @@ class State {
   }
 }
 
-class EditorConnection {
+export class EditorConnection {
   constructor(report, url) {
     this.report = report
     this.url = url
@@ -34,7 +31,6 @@ class EditorConnection {
     this.backOff = 0
     this.view = null
     this.dispatch = this.dispatch.bind(this)
-    this.start()
   }
 
   // All state changes go through this
@@ -103,7 +99,7 @@ class EditorConnection {
 
   // Load the document from the server and start up
   start() {
-    this.run(GET(this.url)).then(data => {
+    return this.run(GET(this.url)).then(data => {
       data = JSON.parse(data)
       this.report.success()
       this.backOff = 0
@@ -227,72 +223,3 @@ const annotationMenuItem = new MenuItem({
 })
 let menu = buildMenuItems(schema)
 menu.fullMenu[0].push(annotationMenuItem)
-
-let info = {
-  name: document.querySelector("#docname"),
-  users: document.querySelector("#users")
-}
-document.querySelector("#changedoc").addEventListener("click", e => {
-  GET("/collab-backend/docs/").then(data => showDocList(e.target, JSON.parse(data)),
-                                    err => report.failure(err))
-})
-
-function userString(n) {
-  return "(" + n + " user" + (n == 1 ? "" : "s") + ")"
-}
-
-let docList
-function showDocList(node, list) {
-  if (docList) docList.parentNode.removeChild(docList)
-
-  let ul = docList = document.body.appendChild(crel("ul", {class: "doclist"}))
-  list.forEach(doc => {
-    ul.appendChild(crel("li", {"data-name": doc.id},
-                        doc.id + " " + userString(doc.users)))
-  })
-  ul.appendChild(crel("li", {"data-new": "true", style: "border-top: 1px solid silver; margin-top: 2px"},
-                      "Create a new document"))
-
-  let rect = node.getBoundingClientRect()
-  ul.style.top = (rect.bottom + 10 + pageYOffset - ul.offsetHeight) + "px"
-  ul.style.left = (rect.left - 5 + pageXOffset) + "px"
-
-  ul.addEventListener("click", e => {
-    if (e.target.nodeName == "LI") {
-      ul.parentNode.removeChild(ul)
-      docList = null
-      if (e.target.hasAttribute("data-name"))
-        location.hash = "#edit-" + encodeURIComponent(e.target.getAttribute("data-name"))
-      else
-        newDocument()
-    }
-  })
-}
-document.addEventListener("click", () => {
-  if (docList) {
-    docList.parentNode.removeChild(docList)
-    docList = null
-  }
-})
-
-function newDocument() {
-  let name = prompt("Name the new document", "")
-  if (name)
-    location.hash = "#edit-" + encodeURIComponent(name)
-}
-
-let connection = null
-
-function connectFromHash() {
-  let isID = /^#edit-(.+)/.exec(location.hash)
-  if (isID) {
-    if (connection) connection.close()
-    info.name.textContent = decodeURIComponent(isID[1])
-    connection = window.connection = new EditorConnection(report, "/collab-backend/docs/" + isID[1])
-    connection.request.then(() => connection.view.focus())
-    return true
-  }
-}
-
-addEventListener("hashchange", connectFromHash)
-connectFromHash() || (location.hash = "#edit-Example")
