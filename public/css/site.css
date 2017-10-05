@@ -34,7 +34,6 @@ body {
   margin: 0 0 5px;
   line-height: 1.45;
   background: white;
-  font-size: 16px;
   position: relative;
 }
 
@@ -45,13 +44,13 @@ header, article, footer nav {
 
 h1, h2, h3, h4, h5 { font-family: Merriweather; font-weight: 700; }
 
-h1 { font-size: 32px; line-height: 40px }
+h1 { font-size: 2em; line-height: 2.5em }
 
-h2 { font-size: 26px; line-height: 33px; margin: 37px 0 12px; }
+h2 { font-size: 1.625em; line-height: 2.0625em; margin: 2.3125em 0 0.75em; }
 
-h3 { font-size: 22px; line-height: 26px; margin: 26px 0 12px; }
+h3 { font-size: 1.375em; line-height: 1.625em; margin: 1.625em 0 0.75em; }
 
-h4 { font-size: 18px; line-height: 22px; margin: 25px 0 12px; }
+h4 { font-size: 1.125em; line-height: 1.375em; margin: 1.5625em 0 0.75em; }
 
 a { text-decoration: none }
 
