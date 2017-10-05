@@ -1,7 +1,7 @@
-const {parse} = require("url")
+import {parse} from "url"
 
 // A URL router for the server.
-class Router {
+export class Router {
   constructor() { this.routes = [] }
 
   add(method, url, handler) {
@@ -49,4 +49,3 @@ class Router {
     })
   }
 }
-exports.Router = Router

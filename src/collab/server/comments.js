@@ -1,4 +1,4 @@
-class Comment {
+export class Comment {
   constructor(from, to, text, id) {
     this.from = from
     this.to = to
@@ -10,9 +10,8 @@ class Comment {
     return new Comment(json.from, json.to, json.text, json.id)
   }
 }
-exports.Comment = Comment
 
-class Comments {
+export class Comments {
   constructor(comments) {
     this.comments = comments || []
     this.events = []
@@ -74,4 +73,3 @@ class Comments {
     return result
   }
 }
-exports.Comments = Comments

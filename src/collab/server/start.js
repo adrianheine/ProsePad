@@ -1,5 +1,5 @@
-const {createServer} = require("http")
-const {handleCollabRequest} = require("./server")
+import {createServer} from "http"
+import {handleCollabRequest} from "./server"
 
 const port = process.env.NODE_PORT
 

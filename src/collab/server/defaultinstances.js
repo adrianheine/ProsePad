@@ -1,10 +1,10 @@
-const {schema} = require("../schema")
+import {schema} from "../schema"
 
 const $node = (type, attrs, content, marks) => schema.node(type, attrs, content, marks)
 const $text = (str, marks) => schema.text(str, marks)
 const em = schema.marks.em.create(), strong = schema.marks.strong.create()
 
-function populateDefaultInstances(newInstance) {
+export function populateDefaultInstances(newInstance) {
 
 newInstance("Example", $node("doc", null, [
   $node("heading", {level: 2}, [$text("Example Document")]),
@@ -63,4 +63,3 @@ newInstance("Comment Section", $node("doc", null, [
 ]))
 
 }
-exports.populateDefaultInstances = populateDefaultInstances

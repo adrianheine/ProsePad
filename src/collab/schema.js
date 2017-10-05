@@ -1,8 +1,8 @@
-const {Schema} = require("prosemirror-model")
-const {schema: base} = require("prosemirror-schema-basic")
-const {addListNodes} = require("prosemirror-schema-list")
+import {Schema} from "prosemirror-model"
+import {schema as base} from "prosemirror-schema-basic"
+import {addListNodes} from "prosemirror-schema-list"
 
-exports.schema = new Schema({
+export const schema = new Schema({
   nodes: addListNodes(base.spec.nodes, "paragraph block*", "block"),
   marks: base.spec.marks
 })

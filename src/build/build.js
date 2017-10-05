@@ -1,10 +1,10 @@
-var path = require("path")
-var fs = require("fs")
+import path from "path"
+import fs from "fs"
 
-var pageDir = path.resolve(__dirname + "/../../pages/")
-var outDir = path.resolve(__dirname + "/../../public/")
+var pageDir = path.resolve("pages/")
+var outDir = path.resolve("public/")
 
-var mold = require('../mold')
+import mold from "../mold"
 
 const buildFile = function(file) {
   var text = fs.readFileSync(file, "utf8").trim()

@@ -1,14 +1,15 @@
-const {readFile} = require("fs")
-const Negotiator = require("negotiator")
-const {Step} = require("prosemirror-transform")
+import {readFile} from "fs"
+import Negotiator from "negotiator"
+import {Step} from "prosemirror-transform"
 
-const {Router} = require("./route")
-const {schema} = require("../schema")
-const {getInstance, instanceInfo} = require("./instance")
+import mold from "../../mold"
+import {Router} from "./route"
+import {schema} from "../schema"
+import {getInstance, instanceInfo} from "./instance"
 
 const router = new Router
 
-exports.handleCollabRequest = function(req, resp) {
+export function handleCollabRequest(req, resp) {
   return router.resolve(req, resp)
 }
 
@@ -119,8 +120,6 @@ handle("GET", ["_resources", "css", null], (filename) => {
 handle("GET", ["_docs"], () => {
   return Output.json(instanceInfo())
 })
-
-const mold = require('../../mold')
 
 const getViewData = inst => ({
   doc: inst.doc.toJSON(),

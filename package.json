@@ -35,7 +35,7 @@
     "rollup-plugin-uglify": "^2.0.1"
   },
   "scripts": {
-    "start": "node src/collab/server/start.js",
+    "start": "node lib/server.js",
     "build": "rollup -c",
     "watch": "rollup -c -w"
   },

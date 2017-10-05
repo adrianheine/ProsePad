@@ -1,9 +1,9 @@
-var fs = require("fs")
-var Mold = require("mold-template")
+import fs from "fs"
+import Mold from "mold-template"
 
 var templateDir = __dirname + "/../templates/"
 
-var mold = new Mold({})
+const mold = new Mold({})
 const buildFile = function(file, name) {
   var text = fs.readFileSync(file, "utf8").trim()
   return mold.bake(name, text)
@@ -15,4 +15,4 @@ fs.readdirSync(templateDir).forEach(function(filename) {
     buildFile(templateDir + match[0], match[1])
 })
 
-module.exports = mold
+export default mold

@@ -1,10 +1,10 @@
-const {readFileSync, writeFile} = require("fs")
+import {readFileSync, writeFile} from "fs"
 
-const {Mapping} = require("prosemirror-transform")
+import {Mapping} from "prosemirror-transform"
 
-const {schema} = require("../schema")
-const {Comments, Comment} = require("./comments")
-const {populateDefaultInstances} = require("./defaultinstances")
+import {schema} from "../schema"
+import {Comments, Comment} from "./comments"
+import {populateDefaultInstances} from "./defaultinstances"
 
 const MAX_STEP_HISTORY = 10000
 
@@ -151,13 +151,12 @@ function doSave() {
   writeFile(saveFile, JSON.stringify(out))
 }
 
-function getInstance(id, ip) {
+export function getInstance(id, ip) {
   let inst = instances[id] || newInstance(id)
   if (ip) inst.registerUser(ip)
   inst.lastActive = Date.now()
   return inst
 }
-exports.getInstance = getInstance
 
 function newInstance(id, doc, comments) {
   if (++instanceCount > maxCount) {
@@ -173,10 +172,9 @@ function newInstance(id, doc, comments) {
   return instances[id] = new Instance(id, doc, comments)
 }
 
-function instanceInfo() {
+export function instanceInfo() {
   let found = []
   for (let id in instances)
     found.push({id: id, users: instances[id].userCount})
   return found
 }
-exports.instanceInfo = instanceInfo

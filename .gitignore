@@ -1,3 +1,5 @@
+/lib/build.js
+/lib/server.js
 /node_modules
 /public/index.html
 /public/js/fullpage.js
