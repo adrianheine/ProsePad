@@ -1,10 +1,10 @@
-PAGES:=$(shell find pages -name "*.html") $(shell find pages -name "*.md")
+PAGES:=$(shell find pages -name "*.html")
 
 EXAMPLES:=collab
 
 ROOT:=$(shell if [ -d node_modules/prosemirror-model ]; then echo node_modules/; else echo ../node_modules/; fi)
 
-all: $(subst .md,.html,$(PAGES:pages/%=public/%)) \
+all: $(PAGES:pages/%=public/%) \
      $(foreach EX,$(EXAMPLES), public/examples/$(EX)/example.js) \
      public/examples/prosemirror.js \
      public/css/editor.css
