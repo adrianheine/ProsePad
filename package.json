@@ -15,10 +15,6 @@
     "prosemirror-commands": "^1.0.0",
     "prosemirror-example-setup": "^1.0.0",
     "prosemirror-history": "^1.0.0",
-    "prosemirror-inputrules": "^1.0.0",
-    "prosemirror-keymap": "^1.0.0",
-    "prosemirror-gapcursor": "^1.0.0",
-    "prosemirror-markdown": "^1.0.0",
     "prosemirror-menu": "^1.0.0",
     "prosemirror-model": "^1.0.0",
     "prosemirror-schema-basic": "^1.0.0",
@@ -29,9 +25,6 @@
     "tagged-union": "^1.1.0"
   },
   "devDependencies": {
-    "builddocs": "^0.2.0",
-    "ecstatic": "^1.4.0",
-    "getdocs": "^0.6.0",
     "mold-template": "^2.0.0",
     "rollup": "^0.50.0",
     "rollup-plugin-buble": "^0.16.0",
@@ -42,7 +35,8 @@
   },
   "scripts": {
     "start": "node src/collab/server/start.js",
-    "devserver": "node src/devserver.js"
+    "build": "rollup -c",
+    "watch": "rollup -c -w"
   },
   "license": "AGPL-3.0",
   "repository": {

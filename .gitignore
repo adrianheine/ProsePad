@@ -1,6 +1,5 @@
 /node_modules
 /public/index.html
-/public/js/prosemirror.js
 /public/js/script.js
 /public/css/editor.css
 .tern-port
