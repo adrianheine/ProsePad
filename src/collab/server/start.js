@@ -11,4 +11,4 @@ createServer((req, resp) => {
   }
 }).listen(port, "127.0.0.1")
 
-console.log("Collab demo server listening on " + port)
+console.log("ProsePad server listening on " + port)

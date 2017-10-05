@@ -1,12 +1,12 @@
 {
-  "name": "prosemirror-website",
+  "name": "prosepad",
   "version": "0.0.1",
-  "description": "ProseMirror's website, documentation system, and demos",
+  "description": "A collaborative editor based on ProseMirror",
   "maintainers": [
     {
-      "name": "Marijn Haverbeke",
-      "email": "marijnh@gmail.com",
-      "web": "http://marijnhaverbeke.nl"
+      "name": "Adrian Heine",
+      "email": "mail@adrianheine.de",
+      "web": "https://adrianheine.de"
     }
   ],
   "dependencies": {
@@ -42,6 +42,6 @@
   "license": "AGPL-3.0",
   "repository": {
     "type": "git",
-    "url": "git://github.com/prosemirror/website.git"
+    "url": "git://github.com/adrianheine/ProsePad.git"
   }
 }
