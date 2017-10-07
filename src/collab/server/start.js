@@ -9,6 +9,6 @@ createServer((req, resp) => {
     resp.writeHead(404, {"Content-Type": "text/plain"})
     resp.end("Not found")
   }
-}).listen(port, "127.0.0.1")
+}).listen(port/*, "127.0.0.1"*/)
 
 console.log("ProsePad server listening on " + port)
