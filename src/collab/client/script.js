@@ -7,8 +7,10 @@ import {Reporter} from "./reporter"
 
 const report = new Reporter()
 
+let baseUrl = "/"
+
 document.querySelector("#changedoc").addEventListener("click", e => {
-  GET("/collab-backend/docs/").then(data => showDocList(e.target, JSON.parse(data)),
+  GET(baseUrl + "_docs").then(data => showDocList(e.target, JSON.parse(data)),
                                     err => report.failure(err))
 })
 
@@ -59,7 +61,7 @@ function connectFromHash() {
   if (isID) {
     if (connection) connection.close()
     info.name.textContent = decodeURIComponent(isID[1])
-    connection = window.connection = new EditorConnection(report, "/collab-backend/docs/" + isID[1])
+    connection = window.connection = new EditorConnection(report, baseUrl + isID[1])
     connection.start().then(() => connection.view.focus())
     return true
   }

@@ -1,3 +1,4 @@
+const {readFile} = require("fs")
 const {Step} = require("prosemirror-transform")
 
 const {Router} = require("./route")
@@ -26,6 +27,20 @@ class Output {
   resp(resp) {
     resp.writeHead(this.code, {"Content-Type": this.type})
     resp.end(this.body)
+  }
+}
+
+class LaterOutput {
+  constructor(promise) {
+    this.promise = promise
+  }
+
+  resp(resp) {
+    this.promise.then(output => output.resp(resp))
+    .catch(err => {
+      const output = new Output(500, String(err))
+      output.resp(resp)
+    })
   }
 }
 
@@ -68,14 +83,45 @@ function handle(method, url, f) {
   })
 }
 
+// Static resources
+
+const extensionsToMimeType = {css: "text/css", html: "text/html", js: "application/javascript"}
+
+const getOutputForFile = path => new LaterOutput(
+  new Promise((resolve, reject) =>
+    readFile("public/" + path, (err, res) => {
+      if (err) {
+        return reject(err)
+      }
+      const extension = path.match(/\.(.+)$/)
+      resolve(new Output(200, res, extension && extensionsToMimeType[extension[1]] || null))
+    })
+  )
+)
+
+handle("GET", "/", () => {
+  return getOutputForFile("index.html")
+})
+handle("GET", "/favicon.ico", () => {
+  return getOutputForFile("favicon.ico")
+})
+
+handle("GET", ["_resources", "js", null], (filename) => {
+  return getOutputForFile("js/" + filename)
+})
+handle("GET", ["_resources", "css", null], (filename) => {
+  return getOutputForFile("css/" + filename)
+})
+
 // The root endpoint outputs a list of the collaborative
 // editing document instances.
-handle("GET", ["docs"], () => {
+handle("GET", ["_docs"], () => {
   return Output.json(instanceInfo())
 })
 
 // Output the current state of a document instance.
-handle("GET", ["docs", null], (id, req) => {
+handle("GET", [null], (id, req) => {
+  id = validInstanceId(id)
   let inst = getInstance(id, reqIP(req))
   return Output.json({doc: inst.doc.toJSON(),
                       users: inst.userCount,
@@ -88,6 +134,14 @@ function nonNegInteger(str) {
   let num = Number(str)
   if (!isNaN(num) && Math.floor(num) == num && num >= 0) return num
   let err = new Error("Not a non-negative integer: " + str)
+  err.status = 400
+  throw err
+}
+
+function validInstanceId(str) {
+  str = str.trim()
+  if (str[0] != "_" && str != "favicon.ico" && str != "") return str
+  let err = new Error("Not a valid document id: " + str)
   err.status = 400
   throw err
 }
@@ -132,9 +186,10 @@ function outputEvents(inst, data) {
 // An endpoint for a collaborative document instance which
 // returns all events between a given version and the server's
 // current version of the document.
-handle("GET", ["docs", null, "events"], (id, req, resp) => {
+handle("GET", [null, "events"], (id, req, resp) => {
   let version = nonNegInteger(req.query.version)
   let commentVersion = nonNegInteger(req.query.commentVersion)
+  id = validInstanceId(id)
 
   let inst = getInstance(id, reqIP(req))
   let data = inst.getEvents(version, commentVersion)
@@ -158,7 +213,7 @@ function reqIP(request) {
 }
 
 // The event submission endpoint, which a client sends an event to.
-handle("POST", ["docs", null, "events"], (data, id, req) => {
+handle("POST", [null, "events"], (data, id, req) => {
   let version = nonNegInteger(data.version)
   let steps = data.steps.map(s => Step.fromJSON(schema, s))
   let result = getInstance(id, reqIP(req)).addEvents(version, steps, data.comment, data.clientID)

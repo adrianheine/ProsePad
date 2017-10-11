@@ -1,7 +1,7 @@
 const {createServer} = require("http")
 const {handleCollabRequest} = require("./server")
 
-const port = 8000
+const port = process.env.NODE_PORT
 
 // The collaborative editing document server.
 createServer((req, resp) => {
