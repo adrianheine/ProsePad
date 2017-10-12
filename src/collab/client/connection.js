@@ -7,8 +7,6 @@ import {collab, receiveTransaction, sendableSteps, getVersion} from "prosemirror
 
 import {schema} from "../schema"
 import {GET, POST} from "./http"
-import {commentsProsePadPlugin} from "./comment"
-import {usersProsePadPlugin} from "./users"
 import Union from "tagged-union"
 
 function badVersion(err) {
@@ -24,27 +22,26 @@ class State {
 
 const Action = new Union(["loaded", "restart", "poll", "recover", "transaction"])
 
-const plugins = [commentsProsePadPlugin, usersProsePadPlugin]
-
 export class EditorConnection {
-  constructor(report, url) {
+  constructor(report, plugins, url) {
     this.report = report
     this.url = url
     this.state = new State(null, "start")
     this.request = null
     this.backOff = 0
     this.view = null
+    this.plugins = plugins
   }
 
   // All state changes go through this
   dispatch(action) {
     action.match({
       loaded: data => {
-        let menuContent = plugins.reduce((menu, plugin) => {
+        let menuContent = this.plugins.reduce((menu, plugin) => {
           menu.fullMenu[0].push(plugin.getMenuItem())
           return menu
         }, buildMenuItems(schema)).fullMenu
-        let config = plugins.reduce((config, plugin) => {
+        let config = this.plugins.reduce((config, plugin) => {
           config.plugins = config.plugins.concat(plugin.proseMirrorPlugins(
             transaction => this.dispatch(Action.transaction({transaction}))
           ))
@@ -134,14 +131,14 @@ export class EditorConnection {
   // is already up-to-date.
   poll() {
     let query = "version=" + getVersion(this.state.edit) + "&" +
-      plugins.map(plugin => `${plugin.key}Version=${plugin.getVersion(this.state.edit)}`).join("&")
+      this.plugins.map(plugin => `${plugin.key}Version=${plugin.getVersion(this.state.edit)}`).join("&")
     this.run(GET(this.url + "/events?" + query, "application/json")).then(data => {
       this.report.success()
       data = JSON.parse(data)
       this.backOff = 0
-      if (data.steps && (data.steps.length || plugins.some(plugin => data[plugin.key]))) {
+      if (data.steps && (data.steps.length || this.plugins.some(plugin => data[plugin.key]))) {
         let tr = receiveTransaction(this.state.edit, data.steps.map(j => Step.fromJSON(schema, j)), data.clientIDs)
-        plugins.forEach(plugin => data[plugin.key] && plugin.receive(tr, data[plugin.key]))
+        this.plugins.forEach(plugin => data[plugin.key] && plugin.receive(tr, data[plugin.key]))
         this.dispatch(Action.transaction({transaction: tr, requestDone: true}))
       } else {
         this.poll()
@@ -160,7 +157,7 @@ export class EditorConnection {
   sendable(editState) {
     let sendable = {steps: sendableSteps(editState)}
     let nonNull = sendable.steps
-    plugins.forEach(plugin => {
+    this.plugins.forEach(plugin => {
       let v = sendable[plugin.key] = plugin.getSendable(editState)
       nonNull = nonNull || v
     })
@@ -170,7 +167,7 @@ export class EditorConnection {
   // Send the given steps to the server
   send(editState, data) {
     let steps = data.steps
-    let dataSent = plugins.reduce((res, plugin) => {
+    let dataSent = this.plugins.reduce((res, plugin) => {
       res[plugin.key] = data[plugin.key]
       return res
     }, {version: getVersion(editState),
@@ -185,7 +182,7 @@ export class EditorConnection {
           ? receiveTransaction(this.state.edit, steps.steps, repeat(steps.clientID, steps.steps.length))
           : this.state.edit.tr
       data = JSON.parse(data)
-      plugins.forEach(plugin => (data[plugin.key] || dataSent[plugin.key]) && plugin.receive(tr, data[plugin.key], dataSent[plugin.key]))
+      this.plugins.forEach(plugin => (data[plugin.key] || dataSent[plugin.key]) && plugin.receive(tr, data[plugin.key], dataSent[plugin.key]))
       this.dispatch(Action.transaction({transaction: tr, requestDone: true}))
     }, err => {
       if (err.status == 409) {

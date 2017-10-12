@@ -1,9 +1,10 @@
 import crel from "crel"
 
+import {commentsProsePadPlugin} from "./comment"
 import {EditorConnection} from "./connection"
 import {GET} from "./http"
 import {Reporter} from "./reporter"
-import {userString} from "./users"
+import {usersProsePadPlugin, userString} from "./users"
 
 const report = new Reporter()
 
@@ -56,12 +57,14 @@ function newDocument() {
 
 let connection = null
 
+const plugins = [commentsProsePadPlugin, usersProsePadPlugin]
+
 function connectFromHash() {
   let isID = /^#edit-(.+)/.exec(location.hash)
   if (isID) {
     if (connection) connection.close()
     document.querySelector("#docname").textContent = decodeURIComponent(isID[1])
-    connection = window.connection = new EditorConnection(report, baseUrl + isID[1])
+    connection = window.connection = new EditorConnection(report, plugins, baseUrl + isID[1])
     connection.start().then(() => connection.view.focus())
     return true
   }
