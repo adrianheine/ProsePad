@@ -20,7 +20,9 @@ class Instance {
     this.version = 0
     this.steps = []
     this.lastActive = Date.now()
-    this.users = Object.create(null)
+    this.users = []
+    this.usersVersion = 0
+    this.ip_to_user_id = Object.create(null)
     this.userCount = 0
     this.waiting = []
 
@@ -31,7 +33,7 @@ class Instance {
     if (this.collecting != null) clearInterval(this.collecting)
   }
 
-  addEvents(version, steps, comments, clientID) {
+  addEvents(version, steps, comments, users, clientID, ip) {
     this.checkVersion(version)
     if (this.version != version) return false
     let doc = this.doc, maps = []
@@ -56,9 +58,15 @@ class Instance {
         this.comments.created(event)
     }
 
+    if (users) {
+      let id = this.ip_to_user_id[ip]
+      Object.assign(this.users.find(user => user.id == id), users)
+      ++this.usersVersion
+    }
+
     this.sendUpdates()
     scheduleSave()
-    return {version: this.version, comments: {version: this.comments.version}}
+    return {version: this.version, comments: {version: this.comments.version}, users: {users: users && this.users, version: this.usersVersion}}
   }
 
   sendUpdates() {
@@ -79,7 +87,7 @@ class Instance {
   // : (Number, Number)
   // Get events between a given document version and
   // the current document version.
-  getEvents(version, commentVersion) {
+  getEvents(version, commentVersion, usersVersion) {
     this.checkVersion(version)
     let startIndex = this.steps.length - (this.version - version)
     if (startIndex < 0) return false
@@ -88,33 +96,54 @@ class Instance {
 
     return {steps: this.steps.slice(startIndex),
             comment: this.comments.eventsAfter(commentStartIndex),
-            users: this.userCount}
+            users: usersVersion < this.usersVersion ? {users: this.users, version: this.usersVersion} : null}
   }
 
   collectUsers() {
-    const oldUserCount = this.userCount
-    this.users = Object.create(null)
-    this.userCount = 0
     this.collecting = null
+    let oldConnectedUsers = 0
+    this.users.forEach(user => {
+      if (user.connected) ++oldConnectedUsers
+      user.connected = false
+    })
     for (let i = 0; i < this.waiting.length; i++)
       this._registerUser(this.waiting[i].ip)
-    if (this.userCount != oldUserCount) this.sendUpdates()
+
+    if (oldConnectedUsers != this.waiting.length) {
+      ++this.usersVersion
+      this.sendUpdates()
+    }
   }
 
   registerUser(ip) {
-    if (!(ip in this.users)) {
-      this._registerUser(ip)
+    if (this._registerUser(ip)) {
+      ++this.usersVersion
       this.sendUpdates()
     }
   }
 
   _registerUser(ip) {
-    if (!(ip in this.users)) {
-      this.users[ip] = true
-      this.userCount++
+    let user
+    if (!(ip in this.ip_to_user_id)) {
+      const colors = ["lightsalmon", "lightblue"]
+      const id = this.ip_to_user_id[ip] = ++this.userCount
+      user = {id, name: "Unnamed user", color: colors[id % colors.length], connected: false}
+      this.users.push(user)
+    } else {
+      user = this.users.find(user => user.id == this.ip_to_user_id[ip])
+      if (!user) {
+        delete this.ip_to_user_id[ip]
+        console.warn(ip + " is in ip_to_user_id, but user with id " + this.ip_to_user_id[ip] + " does not exist")
+        return this.registerUser(ip)
+      }
+    }
+    if (!user.connected) {
+      user.connected = true
       if (this.collecting == null)
         this.collecting = setTimeout(() => this.collectUsers(), 5000)
+      return true
     }
+    return false
   }
 }
 
@@ -175,6 +204,6 @@ function newInstance(id, doc, comments) {
 export function instanceInfo() {
   let found = []
   for (let id in instances)
-    found.push({id: id, users: instances[id].userCount})
+    found.push({id: id, users: instances[id].users.filter(user => user.connected).length})
   return found
 }

@@ -121,9 +121,9 @@ handle("GET", ["_docs"], () => {
   return Output.json(instanceInfo())
 })
 
-const getViewData = inst => ({
+const getViewData = (inst, ip) => ({
   doc: inst.doc.toJSON(),
-  users: inst.userCount,
+  users: {curUser: inst.ip_to_user_id[ip], users: inst.users, version: inst.usersVersion},
   version: inst.version,
   comments: inst.comments
 })
@@ -131,14 +131,15 @@ const getViewData = inst => ({
 // Output the current state of a document instance.
 handle("GET", [null], (id, req) => {
   id = validInstanceId(id)
-  let inst = getInstance(id, reqIP(req))
+  const ip = reqIP(req)
+  let inst = getInstance(id, ip)
   const negotiator = new Negotiator(req)
   switch (negotiator.mediaType(["text/html", "application/json"])) {
   case "application/json":
-    return Output.json(getViewData(inst))
+    return Output.json(getViewData(inst, ip))
   case "text/html":
     return new Output(200, mold.dispatch("editor", {
-      content: JSON.stringify(getViewData(inst)),
+      content: JSON.stringify(getViewData(inst, ip)),
       docName: id
     }), "text/html")
   default:
@@ -204,10 +205,11 @@ function outputEvents(inst, data) {
 handle("GET", [null, "events"], (id, req, resp) => {
   let version = nonNegInteger(req.query.version)
   let commentVersion = nonNegInteger(req.query.commentsVersion)
+  let usersVersion = nonNegInteger(req.query.usersVersion)
   id = validInstanceId(id)
 
   let inst = getInstance(id, reqIP(req))
-  let data = inst.getEvents(version, commentVersion)
+  let data = inst.getEvents(version, commentVersion, usersVersion)
   if (data === false)
     return new Output(410, "History no longer available")
   // If the server version is greater than the given version,
@@ -217,7 +219,7 @@ handle("GET", [null, "events"], (id, req, resp) => {
   // If the server version matches the given version,
   // wait until a new version is published to return the event data.
   let wait = new Waiting(resp, inst, reqIP(req), () => {
-    wait.send(outputEvents(inst, inst.getEvents(version, commentVersion)))
+    wait.send(outputEvents(inst, inst.getEvents(version, commentVersion, usersVersion)))
   })
   inst.waiting.push(wait)
   resp.on("close", () => wait.abort())
@@ -231,7 +233,7 @@ function reqIP(request) {
 handle("POST", [null, "events"], (data, id, req) => {
   let version = nonNegInteger(data.version)
   let steps = data.steps.map(s => Step.fromJSON(schema, s))
-  let result = getInstance(id, reqIP(req)).addEvents(version, steps, data.comments, data.clientID)
+  let result = getInstance(id, reqIP(req)).addEvents(version, steps, data.comments, data.users, data.clientID, reqIP(req))
   if (!result)
     return new Output(409, "Version not current")
   else

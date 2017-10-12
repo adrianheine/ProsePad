@@ -8,7 +8,7 @@ import {collab, receiveTransaction, sendableSteps, getVersion} from "prosemirror
 import {schema} from "../schema"
 import {GET, POST} from "./http"
 import {commentsProsePadPlugin} from "./comment"
-import {info, userString} from "./info"
+import {usersProsePadPlugin} from "./users"
 import Union from "tagged-union"
 
 function badVersion(err) {
@@ -24,7 +24,7 @@ class State {
 
 const Action = new Union(["loaded", "restart", "poll", "recover", "transaction"])
 
-const plugins = [commentsProsePadPlugin]
+const plugins = [commentsProsePadPlugin, usersProsePadPlugin]
 
 export class EditorConnection {
   constructor(report, url) {
@@ -44,7 +44,6 @@ export class EditorConnection {
           menu.fullMenu[0].push(plugin.getMenuItem())
           return menu
         }, buildMenuItems(schema)).fullMenu
-        info.users.textContent = userString(action.users) // FIXME ewww
         let config = plugins.reduce((config, plugin) => {
           config.plugins = config.plugins.concat(plugin.proseMirrorPlugins(
             transaction => this.dispatch(Action.transaction({transaction}))
@@ -147,7 +146,6 @@ export class EditorConnection {
       } else {
         this.poll()
       }
-      info.users.textContent = userString(data.users)
     }, err => {
       if (err.status == 410 || badVersion(err)) {
         // Too far behind. Revert to server state

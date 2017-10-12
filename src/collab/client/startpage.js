@@ -2,8 +2,8 @@ import crel from "crel"
 
 import {EditorConnection} from "./connection"
 import {GET} from "./http"
-import {info, userString} from "./info"
 import {Reporter} from "./reporter"
+import {userString} from "./users"
 
 const report = new Reporter()
 
@@ -21,7 +21,7 @@ function showDocList(node, list) {
   let ul = docList = document.body.appendChild(crel("ul", {class: "doclist"}))
   list.forEach(doc => {
     ul.appendChild(crel("li", {"data-name": doc.id},
-                        doc.id + " " + userString(doc.users)))
+                        doc.id + " (" + userString(doc.users))) + ")"
   })
   ul.appendChild(crel("li", {"data-new": "true", style: "border-top: 1px solid silver; margin-top: 2px"},
                       "Create a new document"))
@@ -60,7 +60,7 @@ function connectFromHash() {
   let isID = /^#edit-(.+)/.exec(location.hash)
   if (isID) {
     if (connection) connection.close()
-    info.name.textContent = decodeURIComponent(isID[1])
+    document.querySelector("#docname").textContent = decodeURIComponent(isID[1])
     connection = window.connection = new EditorConnection(report, baseUrl + isID[1])
     connection.start().then(() => connection.view.focus())
     return true
