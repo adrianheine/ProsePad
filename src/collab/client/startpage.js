@@ -1,13 +1,12 @@
 import crel from "crel"
 
 import {commentsProsePadPlugin} from "./comment"
-import {EditorConnection} from "./connection"
-import {GET} from "./http"
+import {ProsePad} from "./prosepad"
 import {Reporter} from "./reporter"
-import {usersProsePadPlugin, userString} from "./users"
+import {GET} from "./http"
+import {getUsersProsePadPlugin, userString} from "./users"
 
 const report = new Reporter()
-
 let baseUrl = "/"
 
 document.querySelector("#changedoc").addEventListener("click", e => {
@@ -55,17 +54,17 @@ function newDocument() {
     location.hash = "#edit-" + encodeURIComponent(name)
 }
 
-let connection = null
+let prosepad = null
 
-const plugins = [commentsProsePadPlugin, usersProsePadPlugin]
+const plugins = [commentsProsePadPlugin, getUsersProsePadPlugin()]
 
 function connectFromHash() {
   let isID = /^#edit-(.+)/.exec(location.hash)
   if (isID) {
-    if (connection) connection.close()
+    if (prosepad) prosepad.close()
     document.querySelector("#docname").textContent = decodeURIComponent(isID[1])
-    connection = window.connection = new EditorConnection(report, plugins, baseUrl + isID[1])
-    connection.start().then(() => connection.view.focus())
+    prosepad = window.prosepad = new ProsePad(report, plugins, document.getElementById("editor"))
+    prosepad.start(baseUrl + isID[1]).then(() => prosepad.view.focus())
     return true
   }
 }

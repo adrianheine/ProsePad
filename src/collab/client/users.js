@@ -73,7 +73,7 @@ export const usersPlugin = new Plugin({
     return {
       update,
       destroy: () => {
-        styleElement.remove()
+        styleElement.parentNode.removeChild(styleElement)
       }
     }
   }
@@ -83,11 +83,11 @@ export const getUsersUiPlugin = ({users, username}) => new Plugin({
   view(editorView) {
     let update = view => {
       const usersState = usersPlugin.getState(view.state)
-      if (users) users.textContent = userString(usersState.users.filter(user => user.connected).length)
-      if (username) username.value = usersState.getUser(usersState.curUser).name
+      users.textContent = userString(usersState.users.filter(user => user.connected).length)
+      username.value = usersState.getUser(usersState.curUser).name
     }
 
-    if (username) username.onchange = e => { // FIXME: also debounced onkeyup
+    username.onchange = e => { // FIXME: also debounced onkeyup
       editorView.dispatch(editorView.state.tr.setMeta(usersPlugin, {type: "update", name: username.value}))
     }
 
@@ -101,17 +101,14 @@ export const getUsersUiPlugin = ({users, username}) => new Plugin({
   }
 })
 
-export const usersProsePadPlugin = {
+export const getUsersProsePadPlugin = (domNodes = null) => ({
   key: "users",
 
   proseMirrorPlugins(dispatch) {
-    return [
+    return domNodes ? [
       usersPlugin,
-      getUsersUiPlugin({
-        users: document.querySelector("#users"),
-        username: document.querySelector("#username")
-      })
-    ]
+      getUsersUiPlugin(domNodes)
+    ] : [ usersPlugin ]
   },
 
   getVersion(state) {
@@ -130,4 +127,4 @@ export const usersProsePadPlugin = {
   getMenuItem() {
     return null
   }
-}
+})

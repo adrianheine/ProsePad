@@ -1,13 +1,22 @@
-import {chatProsePadPlugin} from "./chat"
+import {getChatProsePadPlugin} from "./chat"
 import {commentsProsePadPlugin} from "./comment"
-import {EditorConnection} from "./connection"
+import {ProsePad} from "./prosepad"
 import {Reporter} from "./reporter"
-import {usersProsePadPlugin} from "./users"
+import {getUsersProsePadPlugin} from "./users"
 
-const report = new Reporter()
-const plugins = [chatProsePadPlugin, commentsProsePadPlugin, usersProsePadPlugin]
+const plugins = [
+  getChatProsePadPlugin({
+    messages: document.querySelector(".chat"),
+    form: document.querySelector(".chatform")
+  }),
+  commentsProsePadPlugin,
+  getUsersProsePadPlugin({
+    users: document.getElementById("users"),
+    username: document.getElementById("username")
+  })
+]
 
 const data = document.getElementById("data")
-const connection = new EditorConnection(report, plugins, document.location)
-connection.startFromData(JSON.parse(data.textContent))
+const prosepad = new ProsePad(new Reporter(), plugins, document.getElementById("editor"))
+prosepad.loadData(JSON.parse(data.textContent), document.location)
 data.parentNode.removeChild(data)
