@@ -47,7 +47,7 @@
     "start": "node src/collab/server/start.js",
     "devserver": "node src/devserver.js"
   },
-  "license": "MIT",
+  "license": "AGPL-3.0",
   "repository": {
     "type": "git",
     "url": "git://github.com/prosemirror/website.git"
