@@ -1,3 +1,4 @@
+import sessions from "client-sessions"
 import {readFile} from "fs"
 import Negotiator from "negotiator"
 import {Step} from "prosemirror-transform"
@@ -8,6 +9,20 @@ import {schema} from "../schema"
 import {getInstance, instanceInfo} from "./instance"
 
 const router = new Router
+const COOKIE_SECRET = "a"
+const COOKIE_NAME = "id_session"
+const getClientId = (middleware => (req, res) => new Promise((resolve, reject) => {
+  middleware(req, res, err => {
+    if (err) return reject(err)
+    req[COOKIE_NAME].id = "id" in req[COOKIE_NAME] ? req[COOKIE_NAME].id : Math.floor(Math.random() * 0xFFFFFFFF)
+    resolve(req[COOKIE_NAME].id)
+  })
+}))(sessions({
+  cookieName: COOKIE_NAME,
+  secret: COOKIE_SECRET,
+  duration: 24 * 60 * 60 * 1000,
+  activeDuration: 1000 * 60 * 5
+}))
 
 export function handleCollabRequest(req, resp) {
   return router.resolve(req, resp)
@@ -121,31 +136,32 @@ handle("GET", ["_docs"], () => {
   return Output.json(instanceInfo())
 })
 
-const getViewData = (inst, ip) => ({
+const getViewData = (inst, clientId) => ({
   doc: inst.doc.toJSON(),
   chat: inst.chat,
-  users: {curUser: inst.ip_to_user_id[ip], users: inst.users, version: inst.usersVersion},
+  users: {curUser: clientId, users: inst.users, version: inst.usersVersion},
   version: inst.version,
   comments: inst.comments
 })
 
 // Output the current state of a document instance.
-handle("GET", [null], (id, req) => {
+handle("GET", [null], (id, req, res) => {
   id = validInstanceId(id)
-  const ip = reqIP(req)
-  let inst = getInstance(id, ip)
-  const negotiator = new Negotiator(req)
-  switch (negotiator.mediaType(["text/html", "application/json"])) {
-  case "application/json":
-    return Output.json(getViewData(inst, ip))
-  case "text/html":
-    return new Output(200, mold.dispatch("editor", {
-      content: JSON.stringify(getViewData(inst, ip)),
-      docName: id
-    }), "text/html")
-  default:
-    return new Output(406, "Not Acceptable")
-  }
+  return new LaterOutput(getClientId(req, res).then(clientId => {
+    let inst = getInstance(id, clientId)
+    const negotiator = new Negotiator(req)
+    switch (negotiator.mediaType(["text/html", "application/json"])) {
+    case "application/json":
+      return Output.json(getViewData(inst, clientId))
+    case "text/html":
+      return new Output(200, mold.dispatch("editor", {
+        content: JSON.stringify(getViewData(inst, clientId)),
+        docName: id
+      }), "text/html")
+    default:
+      return new Output(406, "Not Acceptable")
+    }
+  }))
 })
 
 function nonNegInteger(str) {
@@ -168,27 +184,20 @@ function validInstanceId(str) {
 // instance to publish a new version before sending the version
 // event data to the client.
 class Waiting {
-  constructor(resp, inst, ip, finish) {
-    this.resp = resp
-    this.inst = inst
-    this.ip = ip
-    this.finish = finish
-    this.done = false
-    resp.setTimeout(1000 * 60 * 5, () => {
-      this.abort()
-      this.send(Output.json({}))
+  constructor(resp, inst, clientId, finish) {
+    this.clientId = clientId
+    const abort = () => {
+      let found = inst.waiting.indexOf(this)
+      if (found > -1) inst.waiting.splice(found, 1)
+    }
+    this.promise = new Promise((resolve, reject) => {
+      this.finish = () => resolve(finish())
+      resp.setTimeout(1000 * 60 * 5, () => {
+        abort()
+        resolve(Output.json({}))
+      })
     })
-  }
-
-  abort() {
-    let found = this.inst.waiting.indexOf(this)
-    if (found > -1) this.inst.waiting.splice(found, 1)
-  }
-
-  send(output) {
-    if (this.done) return
-    output.resp(this.resp)
-    this.done = true
+    resp.on("close", () => abort())
   }
 }
 
@@ -211,34 +220,34 @@ handle("GET", [null, "events"], (id, req, resp) => {
   let usersVersion = nonNegInteger(req.query.usersVersion)
   id = validInstanceId(id)
 
-  let inst = getInstance(id, reqIP(req))
-  let data = inst.getEvents(version, chatVersion, commentVersion, usersVersion)
-  if (data === false)
-    return new Output(410, "History no longer available")
-  // If the server version is greater than the given version,
-  // return the data immediately.
-  if (data.steps.length || data.comment.length || (data.chat && data.chat.messages.length))
-    return outputEvents(inst, data)
-  // If the server version matches the given version,
-  // wait until a new version is published to return the event data.
-  let wait = new Waiting(resp, inst, reqIP(req), () => {
-    wait.send(outputEvents(inst, inst.getEvents(version, chatVersion, commentVersion, usersVersion)))
-  })
-  inst.waiting.push(wait)
-  resp.on("close", () => wait.abort())
+  return new LaterOutput(getClientId(req, resp).then(clientId => {
+    let inst = getInstance(id, clientId)
+    let data = inst.getEvents(version, chatVersion, commentVersion, usersVersion)
+    if (data === false)
+      return new Output(410, "History no longer available")
+    // If the server version is greater than the given version,
+    // return the data immediately.
+    if (data.steps.length || data.comment.length || (data.chat && data.chat.messages.length))
+      return outputEvents(inst, data)
+    // If the server version matches the given version,
+    // wait until a new version is published to return the event data.
+    let wait = new Waiting(resp, inst, clientId, () => {
+      return outputEvents(inst, inst.getEvents(version, chatVersion, commentVersion, usersVersion))
+    })
+    inst.waiting.push(wait)
+    return wait.promise
+  }))
 })
 
-function reqIP(request) {
-  return request.headers["x-forwarded-for"] || request.socket.remoteAddress
-}
-
 // The event submission endpoint, which a client sends an event to.
-handle("POST", [null, "events"], (data, id, req) => {
+handle("POST", [null, "events"], (data, id, req, resp) => {
   let version = nonNegInteger(data.version)
   let steps = data.steps.map(s => Step.fromJSON(schema, s))
-  let result = getInstance(id, reqIP(req)).addEvents(version, steps, data.chat, data.comments, data.users, data.clientID, reqIP(req))
-  if (!result)
-    return new Output(409, "Version not current")
-  else
-    return Output.json(result)
+  return new LaterOutput(getClientId(req, resp).then(clientId => {
+    let result = getInstance(id, clientId).addEvents(version, steps, data.chat, data.comments, data.users, data.clientID, clientId)
+    if (!result)
+      return new Output(409, "Version not current")
+    else
+      return Output.json(result)
+  }))
 })

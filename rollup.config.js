@@ -51,7 +51,7 @@ export default [
       format: "cjs"
     },
     plugins: nodePlugins,
-    external: ["url", "fs", "path", "http"]
+    external: ["crypto", "events", "url", "fs", "path", "http"]
   },
   {
     input: "src/build/build.js",

@@ -22,7 +22,7 @@ class Instance {
     this.lastActive = Date.now()
     this.users = []
     this.usersVersion = 0
-    this.ip_to_user_id = Object.create(null)
+    this.present_clients = Object.create(null)
     this.userCount = 0
     this.waiting = []
     this.chat = {messages: [], version: 0}
@@ -34,7 +34,7 @@ class Instance {
     if (this.collecting != null) clearInterval(this.collecting)
   }
 
-  addEvents(version, steps, chat, comments, users, clientID, ip) {
+  addEvents(version, steps, chat, comments, users, clientID, clientId) {
     this.checkVersion(version)
     if (this.version != version) return false
     let doc = this.doc, maps = []
@@ -60,8 +60,7 @@ class Instance {
     }
 
     if (users) {
-      let id = this.ip_to_user_id[ip]
-      Object.assign(this.users.find(user => user.id == id), users)
+      Object.assign(this.users.find(user => user.id == clientId), users)
       ++this.usersVersion
     }
 
@@ -114,7 +113,7 @@ class Instance {
       user.connected = false
     })
     for (let i = 0; i < this.waiting.length; i++)
-      this._registerUser(this.waiting[i].ip)
+      this._registerUser(this.waiting[i].clientId)
 
     if (oldConnectedUsers != this.waiting.length) {
       ++this.usersVersion
@@ -122,16 +121,16 @@ class Instance {
     }
   }
 
-  registerUser(ip) {
-    if (this._registerUser(ip)) {
+  registerUser(clientId) {
+    if (this._registerUser(clientId)) {
       ++this.usersVersion
       this.sendUpdates()
     }
   }
 
-  _registerUser(ip) {
+  _registerUser(clientId) {
     let user
-    if (!(ip in this.ip_to_user_id)) {
+    if (!(clientId in this.present_clients)) {
       const colors = ["lightsalmon", "lightblue", "#ffc7c7", "#fff1c7",
         "#c7ffd5", "#e3c7ff", "#c7ffff", "#ffc7f1", "#8fabff", "#c78fff",
         "#ff8fe3", "#d97979",
@@ -143,15 +142,16 @@ class Instance {
         "#358f9b", "#496d2f", "#e267fe", "#d23056", "#1a1a64", "#5aa335",
         "#d722bb", "#86dc6c", "#b5a714", "#955b6a", "#9f2985", "#e3ffc7",
         "#c7d5ff", "#ff8f8f", "#ffe38f", "#c7ff8f", "#8fffab", "#8fffff"]
-      const id = this.ip_to_user_id[ip] = this.userCount++
-      user = {id, name: "Unnamed user", color: colors[id % colors.length], connected: false}
+      this.present_clients[clientId] = true
+      ++this.userCount
+      user = {id: clientId, name: "Unnamed user", color: colors[this.userCount % colors.length], connected: false}
       this.users.push(user)
     } else {
-      user = this.users.find(user => user.id == this.ip_to_user_id[ip])
+      user = this.users.find(user => user.id == clientId)
       if (!user) {
-        delete this.ip_to_user_id[ip]
-        console.warn(ip + " is in ip_to_user_id, but user with id " + this.ip_to_user_id[ip] + " does not exist")
-        return this.registerUser(ip)
+        delete this.present_clients[clientId]
+        console.warn(clientId + " is in present_clients, but not in users")
+        return this.registerUser(clientId)
       }
     }
     if (!user.connected) {
@@ -197,9 +197,9 @@ function doSave() {
   writeFile(saveFile, JSON.stringify(out))
 }
 
-export function getInstance(id, ip) {
+export function getInstance(id, clientId) {
   let inst = instances[id] || newInstance(id)
-  if (ip) inst.registerUser(ip)
+  if (clientId) inst.registerUser(clientId)
   inst.lastActive = Date.now()
   return inst
 }
