@@ -10,7 +10,7 @@ const MAX_STEP_HISTORY = 10000
 
 // A collaborative editing document instance.
 class Instance {
-  constructor(id, doc, comments) {
+  constructor(id, doc, comments, users = [], chat = []) {
     this.id = id
     this.doc = doc || schema.node("doc", null, [schema.node("paragraph", null, [
       schema.text("This is a collaborative test document. Start editing to make it more interesting!")
@@ -20,12 +20,10 @@ class Instance {
     this.version = 0
     this.steps = []
     this.lastActive = Date.now()
-    this.users = []
     this.usersVersion = 0
-    this.present_clients = Object.create(null)
-    this.userCount = 0
+    this.users = new Map(users.map(user => [user.id, user]))
     this.waiting = []
-    this.chat = {messages: [], version: 0}
+    this.chat = {messages: chat, version: chat.length}
 
     this.collecting = null
   }
@@ -60,7 +58,7 @@ class Instance {
     }
 
     if (users) {
-      Object.assign(this.users.find(user => user.id == clientId), users)
+      Object.assign(this.users.get(clientId), users)
       ++this.usersVersion
     }
 
@@ -71,7 +69,7 @@ class Instance {
 
     this.sendUpdates()
     scheduleSave()
-    return {version: this.version, chat: {version: this.chat.version}, comments: {version: this.comments.version}, users: {users: users && this.users, version: this.usersVersion}}
+    return {version: this.version, chat: {version: this.chat.version}, comments: {version: this.comments.version}, users: {users: users && Array.from(this.users.values()), version: this.usersVersion}}
   }
 
   sendUpdates() {
@@ -102,7 +100,7 @@ class Instance {
     return {steps: this.steps.slice(startIndex),
             chat: chatVersion != null ? {messages: this.chat.messages.slice(chatVersion)} : null,
             comment: this.comments.eventsAfter(commentStartIndex),
-            users: usersVersion < this.usersVersion ? {users: this.users, version: this.usersVersion} : null}
+            users: usersVersion < this.usersVersion ? {users: Array.from(this.users.values()), version: this.usersVersion} : null}
   }
 
   collectUsers() {
@@ -129,8 +127,8 @@ class Instance {
   }
 
   _registerUser(clientId) {
-    let user
-    if (!(clientId in this.present_clients)) {
+    let user = this.users.get(clientId)
+    if (!user) {
       const colors = ["lightsalmon", "lightblue", "#ffc7c7", "#fff1c7",
         "#c7ffd5", "#e3c7ff", "#c7ffff", "#ffc7f1", "#8fabff", "#c78fff",
         "#ff8fe3", "#d97979",
@@ -142,17 +140,8 @@ class Instance {
         "#358f9b", "#496d2f", "#e267fe", "#d23056", "#1a1a64", "#5aa335",
         "#d722bb", "#86dc6c", "#b5a714", "#955b6a", "#9f2985", "#e3ffc7",
         "#c7d5ff", "#ff8f8f", "#ffe38f", "#c7ff8f", "#8fffab", "#8fffff"]
-      this.present_clients[clientId] = true
-      ++this.userCount
-      user = {id: clientId, name: "Unnamed user", color: colors[this.userCount % colors.length], connected: false}
-      this.users.push(user)
-    } else {
-      user = this.users.find(user => user.id == clientId)
-      if (!user) {
-        delete this.present_clients[clientId]
-        console.warn(clientId + " is in present_clients, but not in users")
-        return this.registerUser(clientId)
-      }
+      user = {id: clientId, name: "Unnamed user", color: colors[this.users.size % colors.length], connected: false}
+      this.users.set(user.id, user)
     }
     if (!user.connected) {
       user.connected = true
@@ -178,7 +167,8 @@ if (process.argv.indexOf("--fresh") == -1) {
 if (json) {
   for (let prop in json)
     newInstance(prop, schema.nodeFromJSON(json[prop].doc),
-                new Comments(json[prop].comments.map(c => Comment.fromJSON(c))))
+                new Comments(json[prop].comments.map(c => Comment.fromJSON(c))),
+                json[prop].users, json[prop].chat)
 } else {
   populateDefaultInstances(newInstance)
 }
@@ -192,8 +182,12 @@ function doSave() {
   saveTimeout = null
   let out = {}
   for (var prop in instances)
-    out[prop] = {doc: instances[prop].doc.toJSON(),
-                 comments: instances[prop].comments.comments}
+    out[prop] = {
+      doc: instances[prop].doc.toJSON(),
+      comments: instances[prop].comments.comments,
+      users: Array.from(instances[prop].users.values()),
+      chat: instances[prop].chat.messages
+    }
   writeFile(saveFile, JSON.stringify(out))
 }
 
@@ -204,7 +198,7 @@ export function getInstance(id, clientId) {
   return inst
 }
 
-function newInstance(id, doc, comments) {
+function newInstance(id, doc, comments, users, chat) {
   if (++instanceCount > maxCount) {
     let oldest = null
     for (let id in instances) {
@@ -215,12 +209,12 @@ function newInstance(id, doc, comments) {
     delete instances[oldest.id]
     --instanceCount
   }
-  return instances[id] = new Instance(id, doc, comments)
+  return instances[id] = new Instance(id, doc, comments, users, chat)
 }
 
 export function instanceInfo() {
   let found = []
   for (let id in instances)
-    found.push({id: id, users: instances[id].users.filter(user => user.connected).length})
+    found.push({id: id, users: Array.from(instances[id].users.values()).filter(user => user.connected).length})
   return found
 }

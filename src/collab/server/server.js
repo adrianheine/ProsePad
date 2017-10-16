@@ -174,7 +174,7 @@ export default class ProsePadServer {
     const getViewData = (inst, clientId) => ({
       doc: inst.doc.toJSON(),
       chat: inst.chat,
-      users: {curUser: clientId, users: inst.users, version: inst.usersVersion},
+      users: {curUser: clientId, users: Array.from(inst.users.values()), version: inst.usersVersion},
       version: inst.version,
       comments: inst.comments
     })
