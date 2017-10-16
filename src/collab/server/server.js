@@ -8,26 +8,6 @@ import {Router} from "./route"
 import {schema} from "../schema"
 import {getInstance, instanceInfo} from "./instance"
 
-const router = new Router
-const COOKIE_SECRET = "a"
-const COOKIE_NAME = "id_session"
-const getClientId = (middleware => (req, res) => new Promise((resolve, reject) => {
-  middleware(req, res, err => {
-    if (err) return reject(err)
-    req[COOKIE_NAME].id = "id" in req[COOKIE_NAME] ? req[COOKIE_NAME].id : Math.floor(Math.random() * 0xFFFFFFFF)
-    resolve(req[COOKIE_NAME].id)
-  })
-}))(sessions({
-  cookieName: COOKIE_NAME,
-  secret: COOKIE_SECRET,
-  duration: 24 * 60 * 60 * 1000,
-  activeDuration: 1000 * 60 * 5
-}))
-
-export function handleCollabRequest(req, resp) {
-  return router.resolve(req, resp)
-}
-
 // Object that represents an HTTP response.
 class Output {
   constructor(code, body, type) {
@@ -75,33 +55,6 @@ function readStreamAsJSON(stream, callback) {
   stream.on("error", e => callback(e))
 }
 
-// : (string, Array, Function)
-// Register a server route.
-function handle(method, url, f) {
-  router.add(method, url, (req, resp, ...args) => {
-    function finish() {
-      let output
-      try {
-        output = f(...args, req, resp)
-      } catch (err) {
-        console.log(err.stack)
-        output = new Output(err.status || 500, err.toString())
-      }
-      if (output) output.resp(resp)
-    }
-
-    if (method == "PUT" || method == "POST")
-      readStreamAsJSON(req, (err, val) => {
-        if (err) new Output(500, err.toString()).resp(resp)
-        else { args.unshift(val); finish() }
-      })
-    else
-      finish()
-  })
-}
-
-// Static resources
-
 const extensionsToMimeType = {css: "text/css", html: "text/html", js: "application/javascript"}
 
 const getOutputForFile = path => new LaterOutput(
@@ -115,54 +68,6 @@ const getOutputForFile = path => new LaterOutput(
     })
   )
 )
-
-handle("GET", "/", () => {
-  return getOutputForFile("index.html")
-})
-handle("GET", "/favicon.ico", () => {
-  return getOutputForFile("favicon.ico")
-})
-
-handle("GET", ["_resources", "js", null], (filename) => {
-  return getOutputForFile("js/" + filename)
-})
-handle("GET", ["_resources", "css", null], (filename) => {
-  return getOutputForFile("css/" + filename)
-})
-
-// The root endpoint outputs a list of the collaborative
-// editing document instances.
-handle("GET", ["_docs"], () => {
-  return Output.json(instanceInfo())
-})
-
-const getViewData = (inst, clientId) => ({
-  doc: inst.doc.toJSON(),
-  chat: inst.chat,
-  users: {curUser: clientId, users: inst.users, version: inst.usersVersion},
-  version: inst.version,
-  comments: inst.comments
-})
-
-// Output the current state of a document instance.
-handle("GET", [null], (id, req, res) => {
-  id = validInstanceId(id)
-  return new LaterOutput(getClientId(req, res).then(clientId => {
-    let inst = getInstance(id, clientId)
-    const negotiator = new Negotiator(req)
-    switch (negotiator.mediaType(["text/html", "application/json"])) {
-    case "application/json":
-      return Output.json(getViewData(inst, clientId))
-    case "text/html":
-      return new Output(200, mold.dispatch("editor", {
-        content: JSON.stringify(getViewData(inst, clientId)),
-        docName: id
-      }), "text/html")
-    default:
-      return new Output(406, "Not Acceptable")
-    }
-  }))
-})
 
 function nonNegInteger(str) {
   let num = Number(str)
@@ -201,53 +106,152 @@ class Waiting {
   }
 }
 
-function outputEvents(inst, data) {
-  return Output.json({version: inst.version,
-                      steps: data.steps.map(s => s.toJSON()),
-                      clientIDs: data.steps.map(step => step.clientID),
-                      comments: data.comment.length ? {comments: data.comment, version: inst.comments.version} : null,
-                      chat: data.chat && data.chat.messages.length ? {messages: data.chat.messages, version: inst.chat.version} : null,
-                      users: data.users})
-}
+export default class ProsePadServer {
+  constructor({cookie_secret}) {
+    const router = this.router = new Router
 
-// An endpoint for a collaborative document instance which
-// returns all events between a given version and the server's
-// current version of the document.
-handle("GET", [null, "events"], (id, req, resp) => {
-  let version = nonNegInteger(req.query.version)
-  let chatVersion = "chatVersion" in req.query ? nonNegInteger(req.query.chatVersion) : null
-  let commentVersion = nonNegInteger(req.query.commentsVersion)
-  let usersVersion = nonNegInteger(req.query.usersVersion)
-  id = validInstanceId(id)
+    const COOKIE_NAME = "id_session"
+    const getClientId = (middleware => (req, res) => new Promise((resolve, reject) => {
+      middleware(req, res, err => {
+        if (err) return reject(err)
+        req[COOKIE_NAME].id = "id" in req[COOKIE_NAME] ? req[COOKIE_NAME].id : Math.floor(Math.random() * 0xFFFFFFFF)
+        resolve(req[COOKIE_NAME].id)
+      })
+    }))(sessions({
+      cookieName: COOKIE_NAME,
+      secret: cookie_secret,
+      duration: 24 * 60 * 60 * 1000,
+      activeDuration: 1000 * 60 * 5
+    }))
 
-  return new LaterOutput(getClientId(req, resp).then(clientId => {
-    let inst = getInstance(id, clientId)
-    let data = inst.getEvents(version, chatVersion, commentVersion, usersVersion)
-    if (data === false)
-      return new Output(410, "History no longer available")
-    // If the server version is greater than the given version,
-    // return the data immediately.
-    if (data.steps.length || data.comment.length || (data.chat && data.chat.messages.length))
-      return outputEvents(inst, data)
-    // If the server version matches the given version,
-    // wait until a new version is published to return the event data.
-    let wait = new Waiting(resp, inst, clientId, () => {
-      return outputEvents(inst, inst.getEvents(version, chatVersion, commentVersion, usersVersion))
+    // : (string, Array, Function)
+    // Register a server route.
+    function handle(method, url, f) {
+      router.add(method, url, (req, resp, ...args) => {
+        function finish() {
+          let output
+          try {
+            output = f(...args, req, resp)
+          } catch (err) {
+            console.log(err.stack)
+            output = new Output(err.status || 500, err.toString())
+          }
+          if (output) output.resp(resp)
+        }
+
+        if (method == "PUT" || method == "POST")
+          readStreamAsJSON(req, (err, val) => {
+            if (err) new Output(500, err.toString()).resp(resp)
+            else { args.unshift(val); finish() }
+          })
+        else
+          finish()
+      })
+    }
+
+    // Static resources
+
+    handle("GET", "/", () => {
+      return getOutputForFile("index.html")
     })
-    inst.waiting.push(wait)
-    return wait.promise
-  }))
-})
+    handle("GET", "/favicon.ico", () => {
+      return getOutputForFile("favicon.ico")
+    })
 
-// The event submission endpoint, which a client sends an event to.
-handle("POST", [null, "events"], (data, id, req, resp) => {
-  let version = nonNegInteger(data.version)
-  let steps = data.steps.map(s => Step.fromJSON(schema, s))
-  return new LaterOutput(getClientId(req, resp).then(clientId => {
-    let result = getInstance(id, clientId).addEvents(version, steps, data.chat, data.comments, data.users, data.clientID, clientId)
-    if (!result)
-      return new Output(409, "Version not current")
-    else
-      return Output.json(result)
-  }))
-})
+    handle("GET", ["_resources", "js", null], (filename) => {
+      return getOutputForFile("js/" + filename)
+    })
+    handle("GET", ["_resources", "css", null], (filename) => {
+      return getOutputForFile("css/" + filename)
+    })
+
+    // The root endpoint outputs a list of the collaborative
+    // editing document instances.
+    handle("GET", ["_docs"], () => {
+      return Output.json(instanceInfo())
+    })
+
+    const getViewData = (inst, clientId) => ({
+      doc: inst.doc.toJSON(),
+      chat: inst.chat,
+      users: {curUser: clientId, users: inst.users, version: inst.usersVersion},
+      version: inst.version,
+      comments: inst.comments
+    })
+
+    // Output the current state of a document instance.
+    handle("GET", [null], (id, req, res) => {
+      id = validInstanceId(id)
+      return new LaterOutput(getClientId(req, res).then(clientId => {
+        let inst = getInstance(id, clientId)
+        const negotiator = new Negotiator(req)
+        switch (negotiator.mediaType(["text/html", "application/json"])) {
+        case "application/json":
+          return Output.json(getViewData(inst, clientId))
+        case "text/html":
+          return new Output(200, mold.dispatch("editor", {
+            content: JSON.stringify(getViewData(inst, clientId)),
+            docName: id
+          }), "text/html")
+        default:
+          return new Output(406, "Not Acceptable")
+        }
+      }))
+    })
+
+    function outputEvents(inst, data) {
+      return Output.json({version: inst.version,
+                          steps: data.steps.map(s => s.toJSON()),
+                          clientIDs: data.steps.map(step => step.clientID),
+                          comments: data.comment.length ? {comments: data.comment, version: inst.comments.version} : null,
+                          chat: data.chat && data.chat.messages.length ? {messages: data.chat.messages, version: inst.chat.version} : null,
+                          users: data.users})
+    }
+
+    // An endpoint for a collaborative document instance which
+    // returns all events between a given version and the server's
+    // current version of the document.
+    handle("GET", [null, "events"], (id, req, resp) => {
+      let version = nonNegInteger(req.query.version)
+      let chatVersion = "chatVersion" in req.query ? nonNegInteger(req.query.chatVersion) : null
+      let commentVersion = nonNegInteger(req.query.commentsVersion)
+      let usersVersion = nonNegInteger(req.query.usersVersion)
+      id = validInstanceId(id)
+
+      return new LaterOutput(getClientId(req, resp).then(clientId => {
+        let inst = getInstance(id, clientId)
+        let data = inst.getEvents(version, chatVersion, commentVersion, usersVersion)
+        if (data === false)
+          return new Output(410, "History no longer available")
+        // If the server version is greater than the given version,
+        // return the data immediately.
+        if (data.steps.length || data.comment.length || (data.chat && data.chat.messages.length))
+          return outputEvents(inst, data)
+        // If the server version matches the given version,
+        // wait until a new version is published to return the event data.
+        let wait = new Waiting(resp, inst, clientId, () => {
+          return outputEvents(inst, inst.getEvents(version, chatVersion, commentVersion, usersVersion))
+        })
+        inst.waiting.push(wait)
+        return wait.promise
+      }))
+    })
+
+    // The event submission endpoint, which a client sends an event to.
+    handle("POST", [null, "events"], (data, id, req, resp) => {
+      let version = nonNegInteger(data.version)
+      let steps = data.steps.map(s => Step.fromJSON(schema, s))
+      return new LaterOutput(getClientId(req, resp).then(clientId => {
+        let result = getInstance(id, clientId).addEvents(version, steps, data.chat, data.comments, data.users, data.clientID, clientId)
+        if (!result)
+          return new Output(409, "Version not current")
+        else
+          return Output.json(result)
+      }))
+    })
+  }
+
+  handle(req, resp) {
+    return this.router.resolve(req, resp)
+  }
+}
