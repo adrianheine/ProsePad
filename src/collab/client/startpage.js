@@ -35,7 +35,7 @@ function showDocList(node, list) {
       ul.parentNode.removeChild(ul)
       docList = null
       if (e.target.hasAttribute("data-name"))
-        location.hash = "#edit-" + encodeURIComponent(e.target.getAttribute("data-name"))
+        location = baseUrl + encodeURIComponent(e.target.getAttribute("data-name"))
       else
         newDocument()
     }
@@ -51,23 +51,15 @@ document.addEventListener("click", () => {
 function newDocument() {
   let name = prompt("Name the new document", "")
   if (name)
-    location.hash = "#edit-" + encodeURIComponent(name)
+    location = baseUrl + encodeURIComponent(name)
 }
 
-let prosepad = null
 
-const plugins = [commentsProsePadPlugin, getUsersProsePadPlugin()]
+const plugins = [
+  commentsProsePadPlugin,
+  getUsersProsePadPlugin({users: document.querySelector(".user-count")})
+]
 
-function connectFromHash() {
-  let isID = /^#edit-(.+)/.exec(location.hash)
-  if (isID) {
-    if (prosepad) prosepad.close()
-    document.querySelector("#docname").textContent = decodeURIComponent(isID[1])
-    prosepad = window.prosepad = new ProsePad(report, plugins, document.getElementById("editor"))
-    prosepad.start(baseUrl + isID[1]).then(() => prosepad.view.focus())
-    return true
-  }
-}
-
-addEventListener("hashchange", connectFromHash)
-connectFromHash() || (location.hash = "#edit-Example")
+document.querySelector("#docname").textContent = "Example"
+const prosepad = window.prosepad = new ProsePad(report, plugins, document.getElementById("editor"))
+prosepad.start(baseUrl + "Example").then(() => prosepad.view.focus())

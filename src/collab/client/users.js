@@ -84,10 +84,10 @@ export const getUsersUiPlugin = ({users, username}) => new Plugin({
     let update = view => {
       const usersState = usersPlugin.getState(view.state)
       users.textContent = userString(usersState.users.filter(user => user.connected).length)
-      username.value = usersState.getUser(usersState.curUser).name
+      if (username) username.value = usersState.getUser(usersState.curUser).name
     }
 
-    username.onchange = e => { // FIXME: also debounced onkeyup
+    if (username) username.onchange = e => { // FIXME: also debounced onkeyup
       editorView.dispatch(editorView.state.tr.setMeta(usersPlugin, {type: "update", name: username.value}))
     }
 
