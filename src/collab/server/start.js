@@ -1,7 +1,7 @@
 import {createServer} from "http"
 import ProsePadServer from "./server"
 
-const port = process.env.NODE_PORT
+const port = process.env.PORT
 
 const server = new ProsePadServer({
   cookie_secret: "a"

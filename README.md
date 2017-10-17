@@ -17,7 +17,7 @@ npm install
 Start the server
 
 ```
-NODE_PORT=8888 npm start
+PORT=8888 npm start
 ```
 
 That will get you a server at [localhost:8888](http://localhost:8888/).
