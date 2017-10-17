@@ -2,6 +2,7 @@
   "name": "prosepad",
   "version": "0.0.1",
   "description": "A collaborative editor based on ProseMirror",
+  "main": "lib/server.js",
   "maintainers": [
     {
       "name": "Adrian Heine",
@@ -38,7 +39,8 @@
   "scripts": {
     "start": "node lib/server.js",
     "build": "rollup -c",
-    "watch": "rollup -c -w"
+    "watch": "rollup -c -w",
+    "install": "make"
   },
   "license": "AGPL-3.0",
   "repository": {
