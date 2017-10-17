@@ -7,9 +7,12 @@ all: $(PAGES:pages/%=public/%) \
      public/js/startpage.js \
      public/css/editor.css
 
-public/%.html: pages/%.* templates/* src/build/*.js
+public/%.html: pages/%.* templates/* lib/build.js
 	mkdir -p $(dir $@)
 	node lib/build.js $<
+
+lib/build.js: src/build/*.js
+	$(ROOT).bin/rollup -c
 
 public/js/fullpage.js: src/collab/client/*.js
 	$(ROOT).bin/rollup -c
