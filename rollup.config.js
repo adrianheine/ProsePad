@@ -2,17 +2,16 @@ import buble from "rollup-plugin-buble"
 import nodeResolve from "rollup-plugin-node-resolve"
 import commonJS from "rollup-plugin-commonjs"
 
-const bublePlugin = buble({
-  exclude: "node_modules/**",
-  namedFunctionExpressions: false
-})
 const commonJsPlugin = commonJS({
   include: 'node_modules/**',
   sourceMap: false
 })
 
 const browserPlugins = [
-  bublePlugin,
+  buble({
+    exclude: "node_modules/**",
+    namedFunctionExpressions: false
+  }),
   nodeResolve({
     main: true,
     browser: true
@@ -21,6 +20,10 @@ const browserPlugins = [
 ]
 
 const nodePlugins = [
+  buble({
+    exclude: "node_modules/**",
+    target: { node: 4 }
+  }),
   nodeResolve({
     main: true
   }),
