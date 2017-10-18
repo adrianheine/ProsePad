@@ -11,13 +11,13 @@ public/%.html: pages/%.* templates/* lib/build.js
 	mkdir -p $(dir $@)
 	node lib/build.js $<
 
-lib/build.js: src/build/*.js
+lib/build.js: src/build/*.js rollup.config.js
 	$(ROOT).bin/rollup -c
 
-public/js/fullpage.js: src/collab/client/*.js
+public/js/fullpage.js: src/collab/client/*.js rollup.config.js
 	$(ROOT).bin/rollup -c
 
-public/js/startpage.js: src/collab/client/*.js
+public/js/startpage.js: src/collab/client/*.js rollup.config.js
 	$(ROOT).bin/rollup -c
 
 public/css/editor.css: $(ROOT)prosemirror-view/style/prosemirror.css \
