@@ -22,7 +22,8 @@ const browserPlugins = [
 const nodePlugins = [
   buble({
     exclude: "node_modules/**",
-    target: { node: 4 }
+    target: { node: 4 },
+    transforms: { arrow: true } // Work around https://gitlab.com/Rich-Harris/buble/issues/187
   }),
   nodeResolve({
     main: true
