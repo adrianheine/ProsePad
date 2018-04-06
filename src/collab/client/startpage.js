@@ -7,7 +7,7 @@ import {GET} from "./http"
 import {getUsersProsePadPlugin, userString} from "./users"
 
 const report = new Reporter()
-let baseUrl = "/"
+let baseUrl = ""
 
 document.querySelector("#changedoc").addEventListener("click", e => {
   GET(baseUrl + "_docs", "application/json").then(data => showDocList(e.target, JSON.parse(data)),
