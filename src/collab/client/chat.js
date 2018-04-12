@@ -54,6 +54,7 @@ const getChatPlugin = ({messages, form}) => {
     view(editorView) {
       let update = (editorView, oldEditorState) => {
         const editorState = editorView.state
+        const scrolledDown = messages.scrollTop + messages.offsetHeight >= messages.scrollHeight
         messages.innerHTML = ""
         chatPlugin.getState(editorState).messages.forEach(({date, user, text}) => {
           date = new Date(date)
@@ -67,6 +68,7 @@ const getChatPlugin = ({messages, form}) => {
             ")"
           ]))
         })
+        if (scrolledDown) messages.scrollTop = messages.scrollHeight
       }
 
       form.onsubmit = e => {
