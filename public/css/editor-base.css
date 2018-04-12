@@ -7,16 +7,6 @@
   padding: 5px 0;
 }
 
-.ProseMirror p:first-child,
-.ProseMirror h1:first-child,
-.ProseMirror h2:first-child,
-.ProseMirror h3:first-child,
-.ProseMirror h4:first-child,
-.ProseMirror h5:first-child,
-.ProseMirror h6:first-child {
-  margin-top: 10px;
-}
-
 .ProseMirror {
   padding: 4px 8px 4px 14px;
   line-height: 1.2;
@@ -24,4 +14,43 @@
   overflow: auto;
 }
 
-.ProseMirror p { margin-bottom: 1em }
+.ProseMirror p {
+  font-size: 1em;
+  line-height: 1.2em;
+  margin: 1.2em 0;
+}
+
+h1 {
+  font-size: 2em;
+  line-height: 1.2em;
+  margin: 0.6em 0;
+  text-decoration: underline;
+}
+
+h2 {
+  font-size: 1.6em;
+  line-height: 1.5em;
+  margin: 0.75em 0;
+}
+
+h3 {
+  font-size: 1.5em;
+  line-height: 1.6em;
+  margin: 0.8em 0;
+}
+
+h4, h5, h6 {
+  font-size: 1.2em;
+  line-height: 2em;
+  margin: 1em 0;
+}
+
+.ProseMirror p:first-child,
+.ProseMirror h1:first-child,
+.ProseMirror h2:first-child,
+.ProseMirror h3:first-child,
+.ProseMirror h4:first-child,
+.ProseMirror h5:first-child,
+.ProseMirror h6:first-child {
+  margin-top: 0;
+}

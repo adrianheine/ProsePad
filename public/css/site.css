@@ -44,14 +44,6 @@ body {
 
 h1, h2, h3, h4, h5 { font-family: Merriweather; font-weight: 700; }
 
-h1 { font-size: 2em; line-height: 2.5em }
-
-h2 { font-size: 1.625em; line-height: 2.0625em; margin: 2.3125em 0 0.75em; }
-
-h3 { font-size: 1.375em; line-height: 1.625em; margin: 1.625em 0 0.75em; }
-
-h4 { font-size: 1.125em; line-height: 1.375em; margin: 1.5625em 0 0.75em; }
-
 a { text-decoration: none }
 
 header > * { z-index: 2; position: relative; }
@@ -162,12 +154,7 @@ h2.module {
   border-bottom: 1px solid black;
 }
 
-p, dl, dd, ul, ol, pre { margin-bottom: 23px }
-
-p, dl { margin-top: 1em; }
-
 @media screen and (max-width: 830px) {
-  h1 { font-size: 22px }
   a.logo {
     padding-left: 38px;
     letter-spacing: -1px;
