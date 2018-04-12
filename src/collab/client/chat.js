@@ -23,6 +23,11 @@ class PluginState {
   }
 }
 
+const pad = (s, n, p) => {
+  const diff = n - s.length
+  return diff > 0 ? new Array(diff + 1).join(p) + s : s
+}
+
 const getChatPlugin = ({messages, form}) => {
   let chatPlugin
   const addChatMessage = (state, dispatch, user, text) => {
@@ -58,7 +63,7 @@ const getChatPlugin = ({messages, form}) => {
             ": ",
             crel("span", text),
             " (",
-            crel("time", {title: date.toString(), datetime: date.toISOString()}, `${date.getHours()}:${date.getMinutes()}`),
+            crel("time", {title: date.toString(), datetime: date.toISOString()}, `${date.getHours()}:${pad(String(date.getMinutes()), 2, "0")}`),
             ")"
           ]))
         })
