@@ -21,7 +21,7 @@ function showDocList(node, list) {
   let ul = docList = document.body.appendChild(crel("ul", {class: "doclist"}))
   list.forEach(doc => {
     ul.appendChild(crel("li", {"data-name": doc.id},
-                        doc.id + " (" + userString(doc.users))) + ")"
+                        doc.id + " (" + userString(doc.users) + ")"))
   })
   ul.appendChild(crel("li", {"data-new": "true", style: "border-top: 1px solid silver; margin-top: 2px"},
                       "Create a new document"))
