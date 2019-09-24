@@ -27,9 +27,11 @@
     "prosemirror-transform": "^1.0.9",
     "prosemirror-view": "^1.0.0",
     "rollup": "^0.57.0",
-    "rollup-plugin-buble": "^0.19.0",
-    "rollup-plugin-commonjs": "^9.1.0",
+    "rollup-plugin-buble": "0.19.2",
+    "buble": "0.19.3",
+    "rollup-plugin-commonjs": "9.1.x",
     "rollup-plugin-node-resolve": "^3.3.0",
+    "rollup-pluginutils": "2.3.3",
     "tagged-union": "^1.1.0"
   },
   "scripts": {
