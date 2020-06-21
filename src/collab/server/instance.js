@@ -188,7 +188,7 @@ function doSave() {
       users: Array.from(instances[prop].users.values()),
       chat: instances[prop].chat.messages
     }
-  writeFile(saveFile, JSON.stringify(out))
+  writeFile(saveFile, JSON.stringify(out), (err) => { if (err) throw err; })
 }
 
 export function getInstance(id, clientId) {
