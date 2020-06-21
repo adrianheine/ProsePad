@@ -1,4 +1,4 @@
-import sessions from "client-sessions"
+import cookieSession from "cookie-session"
 import {readFile} from "fs"
 import Negotiator from "negotiator"
 import {Step} from "prosemirror-transform"
@@ -114,14 +114,14 @@ export default class ProsePadServer {
     const getClientId = (middleware => (req, res) => new Promise((resolve, reject) => {
       middleware(req, res, err => {
         if (err) return reject(err)
-        req[COOKIE_NAME].id = "id" in req[COOKIE_NAME] ? req[COOKIE_NAME].id : Math.floor(Math.random() * 0xFFFFFFFF)
-        resolve(req[COOKIE_NAME].id)
+        req.session.id = "id" in req.session ? req.session.id : Math.floor(Math.random() * 0xFFFFFFFF)
+        resolve(req.session.id)
       })
-    }))(sessions({
-      cookieName: COOKIE_NAME,
+    }))(cookieSession({
+      name: COOKIE_NAME,
       secret: cookie_secret,
-      duration: 24 * 60 * 60 * 1000,
-      activeDuration: 1000 * 60 * 5
+      maxAge: 24 * 60 * 60 * 1000,
+      expires: 1000 * 60 * 5
     }))
 
     // : (string, Array, Function)
