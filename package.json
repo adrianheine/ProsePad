@@ -11,7 +11,7 @@
     }
   ],
   "dependencies": {
-    "client-sessions": "^0.8.0",
+    "cookie-session": "^2.0.0-rc.1",
     "crel": "^3.0.0",
     "mold-template": "^2.0.0",
     "negotiator": "^0.6.1",
